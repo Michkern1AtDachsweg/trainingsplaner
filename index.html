@@ -19,7 +19,6 @@
             --red: #e84118;
             --orange: #fbc531;
             --blue: #00a8ff;
-            /* Zwingt einen extra dicken Sicherheitsabstand für Handyleisten unten */
             --safe-area-bottom: env(safe-area-inset-bottom, 35px);
         }
 
@@ -130,10 +129,9 @@
             top: 0;
         }
 
-        /* Drückt die Startleiste weit nach oben, schützt vor der Handyleiste */
         footer {
             padding: 15px;
-            padding-bottom: calc(55px + var(--safe-area-bottom)) !important; /* Dicker Schutzabstand */
+            padding-bottom: calc(55px + var(--safe-area-bottom)) !important;
             background-color: var(--panel-dark);
             flex-shrink: 0;
             display: flex;
@@ -149,7 +147,7 @@
             font-weight: bold;
         }
 
-        /* Zentrierter Timer-Bildschirm */
+        /* Trainings-Bildschirm */
         #training-view {
             display: flex !important;
             justify-content: center !important;
@@ -243,10 +241,9 @@
     <div id="main-view" class="view">
         <header>
             <select id="plan-selector">
-                <option value="">-- Pläne laden... --</option>
+                <option value="">-- Wähle einen Plan --</option>
             </select>
             <div class="header-buttons">
-                <!-- Neuer, blauer Button zum direkten Laden der Vorlage aus deinem GitHub-Verzeichnis -->
                 <button id="btn-load-github" class="btn btn-blue">🌐 Vorlage laden</button>
                 <label class="btn btn-orange" for="excel-input">📥 Excel Laden</label>
                 <input type="file" id="excel-input" accept=".xlsx" style="display:none;">
@@ -303,18 +300,19 @@
     </div>
 
     <script>
-        // *** URSPRÜNGLICHER, STABILER CODE (DER BEI DIR FUNKTIONIERT HAT) ***
         let allPlans = {};
         let currentPlan = null;
         let activeInterval = null;
         let boxingBell = null;
         let timerState = { stepIndex: 0, timeLeft: 0, totalRemaining: 0, isPaused: false };
 
-        // Falls du die Vorlage von GitHub lädst, wird dieser Link gerufen:
         const githubExcelUrl = 'https://raw.githubusercontent.com/Michkern1AtDachsweg/trainingsplaner/main/Trainingsplan.xlsx';
 
         window.addEventListener('load', () => {
-            initEventListeners();
+            if (typeof XLSX === 'undefined') {
+                alert("⚠️ Excel-Bibliothek (XLSX) fehlt oder blockiert!");
+            }
+
             try {
                 const saved = localStorage.getItem('trainingsplaene');
                 if (saved) {
@@ -327,12 +325,13 @@
                     }
                 }
             } catch (e) { console.error("Fehler beim Laden:", e); }
+            initEventListeners();
             renderPlanTable();
         });
 
         function initEventListeners() {
-            // "change"-Event für den manuellen Excel-Laden-Button registrieren
-            document.getElementById('excel-input').addEventListener('change', handleExcelImport);
+            document.getElementById('excel-input').addEventListener('change', handleLocalExcelImport);
+            document.getElementById('btn-load-github').addEventListener('click', loadExcelFromGithub);
 
             document.getElementById('plan-selector').addEventListener('change', (e) => {
                 currentPlan = allPlans[e.target.value] || null;
@@ -340,107 +339,131 @@
             });
             document.getElementById('btn-delete-plan').addEventListener('click', deleteCurrentPlan);
             document.getElementById('btn-start-training').addEventListener('click', startTraining);
-            document.getElementById('btn-load-github').addEventListener('click', loadExcelFromGithub);
             document.getElementById('btn-pause').addEventListener('click', togglePause);
             document.getElementById('btn-skip').addEventListener('click', skipStep);
             document.getElementById('btn-stop').addEventListener('click', () => quitTraining(false));
         }
 
-        // *** DIE ORIGINALE, BEWÄHRTE PARSER-LOGIK ***
+        // *** ABSOLUT SICHERER PARSER UND DROPDOWN-UPDATER ***
         function processExcelData(arrayBuffer) {
-            const data = new Uint8Array(arrayBuffer);
-            const workbook = XLSX.read(data, { type: 'array' });
-            const tempPlans = {};
+            try {
+                const data = new Uint8Array(arrayBuffer);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const tempPlans = {};
 
-            workbook.SheetNames.forEach(sheetName => {
-                const ws = workbook.Sheets[sheetName];
-                const jsonData = XLSX.utils.sheet_to_json(ws, { header: 1 });
-                const newPlan = { name: sheetName, steps: [] };
-                let headerFound = false;
+                workbook.SheetNames.forEach(sheetName => {
+                    const ws = workbook.Sheets[sheetName];
+                    const jsonData = XLSX.utils.sheet_to_json(ws, { header: 1 });
 
-                for (const row of jsonData) {
-                    if (!row || !row[0]) continue;
-                    if (!headerFound && row[0].toString().toLowerCase().includes('zeit')) { headerFound = true; continue; }
-                    if (!headerFound) continue;
+                    if (jsonData.length === 0) return;
 
-                    // Der originale Zuweisungs-Befehl aus der funktionierenden Version!
-                    const [baseName, workMin, repeats, pauseMin, , note] = row;
-                    if (!baseName) continue;
+                    const newPlan = { name: sheetName, steps: [] };
+                    let headerFound = false;
 
-                    const parsedWorkMin = parseFloat(String(workMin || 0).replace(',', '.'));
-                    const parsedRepeats = parseInt(repeats) || 1;
-                    const parsedPauseMin = parseFloat(String(pauseMin || 0).replace(',', '.'));
+                    for (const row of jsonData) {
+                        if (!row || row.length < 1 || !row[0]) continue;
 
-                    for (let r = 1; r <= parsedRepeats; r++) {
-                        newPlan.steps.push({
-                            name: `${baseName}${parsedRepeats > 1 ? ` (Runde ${r}/${parsedRepeats})` : ''}`,
-                            duration: parsedWorkMin * 60,
-                            isPause: false,
-                            note: note || ""
-                        });
-                        if (parsedPauseMin > 0) {
+                        // Kopfzeile suchen
+                        if (!headerFound && row[0].toString().toLowerCase().includes('zeit')) {
+                            headerFound = true;
+                            continue;
+                        }
+                        if (!headerFound) continue;
+
+                        const baseName = row[0] ? row[0].toString().trim() : "";
+                        const workMin = (row[1] !== undefined) ? parseFloat(String(row[1]).replace(',', '.')) : 0;
+                        const repeats = (row[2] !== undefined) ? parseInt(row[2]) : 1;
+                        const pauseMin = (row[3] !== undefined) ? parseFloat(String(row[3]).replace(',', '.')) : 0;
+                        const note = (row[5] !== undefined) ? row[5].toString().trim() : "";
+
+                        if (!baseName) continue;
+
+                        for (let r = 1; r <= repeats; r++) {
                             newPlan.steps.push({
-                                name: "Pause",
-                                duration: parsedPauseMin * 60,
-                                isPause: true,
-                                note: `Nächste Übung: ${baseName}`
+                                name: `${baseName}${repeats > 1 ? ` (Runde ${r}/${repeats})` : ''}`,
+                                duration: workMin * 60,
+                                isPause: false,
+                                note: note
                             });
+                            if (pauseMin > 0) {
+                                newPlan.steps.push({
+                                    name: "Pause",
+                                    duration: pauseMin * 60,
+                                    isPause: true,
+                                    note: `Nächste Übung: ${baseName}`
+                                });
+                            }
                         }
                     }
-                }
-                if (newPlan.steps.length > 0) tempPlans[sheetName] = newPlan;
-            });
-            return tempPlans;
+
+                    if (newPlan.steps.length > 0) {
+                        tempPlans[sheetName] = newPlan;
+                    }
+                });
+
+                return tempPlans;
+            } catch (err) {
+                alert("Fehler bei der Excel-Verarbeitung: " + err.message);
+                return null;
+            }
         }
 
-        // Manueller Import (Der Button, der zuvor gelaufen ist!)
-        function handleExcelImport(e) {
+        // Lokaler manueller Import (völlig isoliert!)
+        function handleLocalExcelImport(e) {
             const file = e.target.files[0];
             if (!file) return;
             const reader = new FileReader();
             reader.onload = (event) => {
-                try {
-                    const loadedPlans = processExcelData(event.target.result);
+                const loadedPlans = processExcelData(event.target.result);
+                if (loadedPlans && Object.keys(loadedPlans).length > 0) {
                     allPlans = { ...allPlans, ...loadedPlans };
                     saveToStorage();
                     updatePlanSelector();
+
+                    // Wähle den neu importierten Plan automatisch aus
                     const lastPlanName = Object.keys(loadedPlans).pop();
                     if (lastPlanName) {
                         document.getElementById('plan-selector').value = lastPlanName;
                         currentPlan = allPlans[lastPlanName];
                     }
                     renderPlanTable();
-                    alert("Trainingspläne erfolgreich geladen!");
-                } catch (err) { alert("Fehler beim Verarbeiten der Excel-Daten."); }
+                    alert("Pläne erfolgreich importiert!");
+                }
             };
             reader.readAsArrayBuffer(file);
         }
 
-        // GitHub Import
+        // Automatischer GitHub-Import (völlig isoliert!)
         function loadExcelFromGithub() {
             const btn = document.getElementById('btn-load-github');
-            btn.textContent = "⌛";
+            btn.textContent = "⌛ Lädt...";
             btn.disabled = true;
 
             fetch(githubExcelUrl)
                 .then(response => {
-                    if (!response.ok) throw new Error(`Netzwerkfehler (${response.status})`);
+                    if (!response.ok) throw new Error("GitHub-Verbindung fehlgeschlagen (Status: " + response.status + ")");
                     return response.arrayBuffer();
                 })
                 .then(arrayBuffer => {
                     const loadedPlans = processExcelData(arrayBuffer);
-                    allPlans = { ...allPlans, ...loadedPlans };
-                    saveToStorage();
-                    updatePlanSelector();
-                    const lastPlanName = Object.keys(loadedPlans).pop();
-                    if (lastPlanName) {
-                        document.getElementById('plan-selector').value = lastPlanName;
-                        currentPlan = allPlans[lastPlanName];
+                    if (loadedPlans && Object.keys(loadedPlans).length > 0) {
+                        allPlans = { ...allPlans, ...loadedPlans };
+                        saveToStorage();
+                        updatePlanSelector();
+
+                        // KORREKTUR: Wählt den importierten Plan sicher im Dropdown aus!
+                        const lastPlanName = Object.keys(loadedPlans).pop();
+                        if (lastPlanName) {
+                            document.getElementById('plan-selector').value = lastPlanName;
+                            currentPlan = allPlans[lastPlanName];
+                        }
+                        renderPlanTable();
+                        alert("Pläne erfolgreich von GitHub geladen!");
                     }
-                    renderPlanTable();
-                    alert("Vorlage von GitHub erfolgreich geladen!");
                 })
-                .catch(err => alert(`Import fehlgeschlagen: Bitte stelle sicher, dass die Datei 'Trainingsplan.xlsx' im Hauptordner deines GitHubs liegt.`))
+                .catch(err => {
+                    alert("Import von GitHub fehlgeschlagen: " + err.message);
+                })
                 .finally(() => {
                     btn.textContent = "🌐 Vorlage laden";
                     btn.disabled = false;
@@ -448,20 +471,32 @@
         }
 
         function deleteCurrentPlan() {
-            if (!currentPlan || !confirm(`Soll der Plan "${currentPlan.name}" wirklich gelöscht werden?`)) return;
-            delete allPlans[currentPlan.name];
-            currentPlan = null;
-            document.getElementById('plan-selector').value = "";
-            saveToStorage();
-            updatePlanSelector();
-            renderPlanTable();
+            if (!currentPlan) return;
+            if (confirm(`Soll der Plan "${currentPlan.name}" wirklich gelöscht werden?`)) {
+                delete allPlans[currentPlan.name];
+                currentPlan = null;
+                document.getElementById('plan-selector').value = "";
+                saveToStorage();
+                updatePlanSelector();
+                renderPlanTable();
+            }
         }
 
+        // *** KORREKTUR: Befüllt das Dropdown sauber und lückenlos ***
         function updatePlanSelector() {
             const selector = document.getElementById('plan-selector');
             selector.innerHTML = '<option value="">-- Wähle einen Plan --</option>';
-            Object.keys(allPlans).forEach(name => selector.add(new Option(name, name)));
-            if (currentPlan) selector.value = currentPlan.name;
+
+            Object.keys(allPlans).forEach(name => {
+                const opt = document.createElement('option');
+                opt.value = name;
+                opt.textContent = name;
+                selector.appendChild(opt);
+            });
+
+            if (currentPlan) {
+                selector.value = currentPlan.name;
+            }
         }
 
         function renderPlanTable() {
@@ -481,7 +516,7 @@
             currentPlan.steps.forEach(step => {
                 const tr = document.createElement('tr');
                 if (step.isPause) tr.style.backgroundColor = "rgba(41, 128, 185, 0.15)";
-                tr.innerHTML = `<td>${step.name}</td><td>${formatTime(step.duration)}</td><td>${step.isPause ? '✔️' : '❌'}</td><td>${step.note || ''}</td>`;
+                tr.innerHTML = `<td>${step.name}</td><td>${formatTime(step.duration)}</td><td>${step.isPause ? "✔️" : "❌"}</td><td>${step.note || ""}</td>`;
                 tableBody.appendChild(tr);
             });
             document.getElementById('lbl-total-time').textContent = `Gesamtdauer: ${formatTime(totalSeconds)}`;
@@ -489,25 +524,26 @@
             document.getElementById('lbl-end-time').textContent = `Endzeit: ${end.getHours().toString().padStart(2, '0')}:${end.getMinutes().toString().padStart(2, '0')} Uhr`;
         }
 
-        function formatTime(s) {
-            const m = Math.floor(s / 60).toString().padStart(2, '0');
-            const sec = Math.round(s % 60).toString().padStart(2, '0');
-            return `${m}:${sec}`;
+        function formatTime(seconds) {
+            const m = Math.floor(seconds / 60).toString().padStart(2, '0');
+            const s = Math.round(seconds % 60).toString().padStart(2, '0');
+            return `${m}:${s}`;
         }
 
-        // Speichert Trainingspläne dauerhaft im Smartphone-Browser-Speicher
         function saveToStorage() {
             localStorage.setItem('trainingsplaene', JSON.stringify(allPlans));
         }
 
         function startTraining() {
             if (!currentPlan || currentPlan.steps.length === 0) return;
+
             if (!boxingBell) {
                 try {
                     boxingBell = new Audio('boxing-bell.mp3');
                     boxingBell.load();
                 } catch (e) { }
             }
+
             document.getElementById('main-view').classList.add('hidden');
             document.getElementById('training-view').classList.remove('hidden');
             timerState = { stepIndex: 0, isPaused: false, totalRemaining: currentPlan.steps.reduce((acc, s) => acc + s.duration, 0) };
@@ -517,7 +553,7 @@
         function runStep() {
             if (timerState.stepIndex >= currentPlan.steps.length) {
                 clearInterval(activeInterval);
-                if (boxingBell) boxingBell.play();
+                try { boxingBell.play(); } catch (e) { }
                 alert("Training beendet! Starke Leistung!");
                 quitTraining(true);
                 return;
@@ -529,7 +565,7 @@
             document.getElementById('training-view').style.backgroundColor = step.isPause ? "#2980b9" : "#c0392b";
             updateNextExercise();
             updateTimerDisplay();
-            if (boxingBell) boxingBell.play();
+            try { boxingBell.play(); } catch (e) { }
             clearInterval(activeInterval);
             activeInterval = setInterval(timerTick, 1000);
         }
@@ -537,7 +573,7 @@
         function timerTick() {
             if (timerState.isPaused) return;
 
-            // Countdown-Pings bei Sekunde 3, 2, 1 (asynchron über die Audio-API)
+            // Countdown-Pings bei Sekunde 3, 2, 1
             if (timerState.timeLeft <= 4 && timerState.timeLeft > 1) {
                 try {
                     const ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -579,6 +615,7 @@
             document.getElementById('training-view').style.backgroundColor = timerState.isPaused ? "#7f8c8d" : (currentPlan.steps[timerState.stepIndex].isPause ? "#2980b9" : "#c0392b");
         }
 
+        // skipStep überspringt den aktuellen Trainingsschritt
         function skipStep() {
             timerState.totalRemaining -= timerState.timeLeft;
             timerState.stepIndex++;
