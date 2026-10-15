@@ -18,7 +18,6 @@
             --red: #e84118;
             --orange: #fbc531;
             --blue: #00a8ff;
-            /* 1. KORREKTUR: Zwingt einen extra dicken Sicherheitsabstand für Handyleisten */
             --safe-area-bottom: env(safe-area-inset-bottom, 35px);
         }
 
@@ -88,6 +87,10 @@
             background-color: var(--green);
         }
 
+        .btn-blue {
+            background-color: var(--blue);
+        }
+
         #btn-start-training:disabled {
             background-color: #576574;
             cursor: not-allowed;
@@ -124,10 +127,9 @@
             top: 0;
         }
 
-        /* 2. KORREKTUR: Hebt die Leiste mit "TRAINING STARTEN" massiv an, damit sie auf Handys nie verdeckt wird */
         footer {
             padding: 15px;
-            padding-bottom: calc(45px + var(--safe-area-bottom)) !important; /* Dicker Sicherheitsabstand nach unten! */
+            padding-bottom: calc(45px + var(--safe-area-bottom)) !important;
             background-color: var(--panel-dark);
             flex-shrink: 0;
             display: flex;
@@ -164,7 +166,6 @@
             max-width: 500px;
             height: 100%;
             padding: 20px;
-            /* 3. KORREKTUR: Schiebt die Buttons im aktiven Training ebenfalls nach oben */
             padding-bottom: calc(50px + var(--safe-area-bottom)) !important;
         }
 
@@ -243,6 +244,8 @@
                 <option value="">-- Pläne laden... --</option>
             </select>
             <div class="header-buttons">
+                <!-- Neuer, blauer Button zum direkten Laden der Vorlage aus deinem GitHub-Verzeichnis -->
+                <button id="btn-load-github" class="btn btn-blue">🌐 Vorlage laden</button>
                 <label class="btn btn-orange" for="excel-input">📥 Excel Laden</label>
                 <input type="file" id="excel-input" accept=".xlsx" style="display:none;">
                 <button id="btn-delete-plan" class="btn btn-red">🗑️ Löschen</button>
@@ -298,12 +301,14 @@
     </div>
 
     <script>
-        // *** URSPRÜNGLICHER, STABILER JAVASCRIPT-CODE ***
         let allPlans = {};
         let currentPlan = null;
         let activeInterval = null;
         const boxingBell = new Audio('boxing-bell.mp3');
         let timerState = { stepIndex: 0, timeLeft: 0, totalRemaining: 0, isPaused: false };
+
+        // Die URL zu deiner hochgeladenen Excel-Datei auf GitHub
+        const githubExcelUrl = 'https://raw.githubusercontent.com/Michkern1AtDachsweg/trainingsplaner/main/Trainingsplan.xlsx';
 
         window.addEventListener('load', () => {
             try {
@@ -311,7 +316,6 @@
                 if (saved) {
                     allPlans = JSON.parse(saved);
                     updatePlanSelector();
-                    // Ersten verfügbaren Plan vorauswählen
                     const firstPlanName = Object.keys(allPlans)[0];
                     if (firstPlanName) {
                         document.getElementById('plan-selector').value = firstPlanName;
@@ -325,6 +329,8 @@
 
         function initEventListeners() {
             document.getElementById('excel-input').addEventListener('change', handleExcelImport);
+            document.getElementById('btn-load-github').addEventListener('click', loadExcelFromGithub);
+
             document.getElementById('plan-selector').addEventListener('change', (e) => {
                 currentPlan = allPlans[e.target.value] || null;
                 renderPlanTable();
@@ -336,50 +342,77 @@
             document.getElementById('btn-stop').addEventListener('click', () => quitTraining(false));
         }
 
-        // Importiert Excel-Datei zeilenweise ab Zeile 3
+        // Importiert eine Excel-Datei aus einem Daten-Buffer
+        function importExcelData(arrayBuffer) {
+            try {
+                const data = new Uint8Array(arrayBuffer);
+                const workbook = XLSX.read(data, { type: 'array' });
+                workbook.SheetNames.forEach(sheetName => {
+                    const ws = workbook.Sheets[sheetName];
+                    const jsonData = XLSX.utils.sheet_to_json(ws, { header: 1 });
+                    const newPlan = { name: sheetName, steps: [] };
+                    let headerFound = false;
+
+                    for (const row of jsonData) {
+                        if (!row || !row[0]) continue;
+                        if (!headerFound && row[0].toString().toLowerCase().includes('zeit')) { headerFound = true; continue; }
+                        if (!headerFound) continue;
+
+                        const [baseName, workMin, repeats, pauseMin, , note] = row;
+                        const parsedWorkMin = parseFloat(String(workMin).replace(',', '.')) || 0;
+                        const parsedRepeats = parseInt(repeats) || 1;
+                        const parsedPauseMin = parseFloat(String(pauseMin).replace(',', '.')) || 0;
+
+                        for (let r = 1; r <= parsedRepeats; r++) {
+                            newPlan.steps.push({ name: `${baseName}${parsedRepeats > 1 ? ` (Runde ${r}/${parsedRepeats})` : ''}`, duration: parsedWorkMin * 60, isPause: false, note: note || "" });
+                            if (parsedPauseMin > 0) {
+                                newPlan.steps.push({ name: "Pause", duration: parsedPauseMin * 60, isPause: true, note: `Nächste Übung: ${baseName}` });
+                            }
+                        }
+                    }
+                    if (newPlan.steps.length > 0) allPlans[sheetName] = newPlan;
+                });
+                saveToStorage();
+                updatePlanSelector();
+                const lastPlanName = workbook.SheetNames[workbook.SheetNames.length - 1];
+                if (allPlans[lastPlanName]) {
+                    document.getElementById('plan-selector').value = lastPlanName;
+                    currentPlan = allPlans[lastPlanName];
+                    renderPlanTable();
+                }
+                alert("Trainingspläne erfolgreich geladen!");
+            } catch (err) { alert("Fehler beim Verarbeiten der Excel-Daten."); }
+        }
+
+        // Holt die Excel-Datei vollautomatisch direkt von GitHub
+        function loadExcelFromGithub() {
+            const btn = document.getElementById('btn-load-github');
+            btn.textContent = "⌛ Lädt...";
+            btn.disabled = true;
+
+            fetch(githubExcelUrl)
+                .then(response => {
+                    if (!response.ok) throw new Error("Netzwerkfehler beim Abruf von GitHub.");
+                    return response.arrayBuffer();
+                })
+                .then(arrayBuffer => {
+                    importExcelData(arrayBuffer);
+                    btn.textContent = "🌐 Vorlage laden";
+                    btn.disabled = false;
+                })
+                .catch(err => {
+                    alert("Fehler beim Laden von GitHub: " + err.message);
+                    btn.textContent = "🌐 Vorlage laden";
+                    btn.disabled = false;
+                });
+        }
+
         function handleExcelImport(e) {
             const file = e.target.files[0];
             if (!file) return;
             const reader = new FileReader();
             reader.onload = (event) => {
-                try {
-                    const data = new Uint8Array(event.target.result);
-                    const workbook = XLSX.read(data, { type: 'array' });
-                    workbook.SheetNames.forEach(sheetName => {
-                        const ws = workbook.Sheets[sheetName];
-                        const jsonData = XLSX.utils.sheet_to_json(ws, { header: 1 });
-                        const newPlan = { name: sheetName, steps: [] };
-                        let headerFound = false;
-
-                        for (const row of jsonData) {
-                            if (!row || !row[0]) continue;
-                            if (!headerFound && row[0].toString().toLowerCase().includes('zeit')) { headerFound = true; continue; }
-                            if (!headerFound) continue;
-
-                            const [baseName, workMin, repeats, pauseMin, , note] = row;
-                            const parsedWorkMin = parseFloat(String(workMin).replace(',', '.')) || 0;
-                            const parsedRepeats = parseInt(repeats) || 1;
-                            const parsedPauseMin = parseFloat(String(pauseMin).replace(',', '.')) || 0;
-
-                            for (let r = 1; r <= parsedRepeats; r++) {
-                                newPlan.steps.push({ name: `${baseName}${parsedRepeats > 1 ? ` (Runde ${r}/${parsedRepeats})` : ''}`, duration: parsedWorkMin * 60, isPause: false, note: note || "" });
-                                if (parsedPauseMin > 0) {
-                                    newPlan.steps.push({ name: "Pause", duration: parsedPauseMin * 60, isPause: true, note: `Nächste Übung: ${baseName}` });
-                                }
-                            }
-                        }
-                        if (newPlan.steps.length > 0) allPlans[sheetName] = newPlan;
-                    });
-                    saveToStorage();
-                    updatePlanSelector();
-                    const lastPlanName = workbook.SheetNames[workbook.SheetNames.length - 1];
-                    if (allPlans[lastPlanName]) {
-                        document.getElementById('plan-selector').value = lastPlanName;
-                        currentPlan = allPlans[lastPlanName];
-                        renderPlanTable();
-                    }
-                    alert("Excel-Datei erfolgreich importiert!");
-                } catch (err) { alert("Fehler beim Lesen der Excel-Datei."); }
+                importExcelData(event.target.result);
             };
             reader.readAsArrayBuffer(file);
         }
@@ -469,7 +502,6 @@
         function timerTick() {
             if (timerState.isPaused) return;
 
-            // Countdown bei 3, 2, 1 Sekunden vor Schluss piepen lassen (ohne Blockieren)
             if (timerState.timeLeft <= 4 && timerState.timeLeft > 1) {
                 try {
                     const ctx = new (window.AudioContext || window.webkitAudioContext)();
