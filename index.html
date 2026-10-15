@@ -3,22 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Box- & Intervalltimer Pro</title>
-    <link rel="manifest" href="manifest.json">
-    <!-- Excel-Parser Bibliothek -->
-    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-
+    <title>Trainingsplaner Pro</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         :root {
             --bg-dark: #1e272e;
             --panel-dark: #2f3640;
             --text-light: #f5f6fa;
-            --text-muted: #9c88ff;
             --green: #4cd137;
             --red: #e84118;
             --orange: #fbc531;
             --blue: #00a8ff;
-            --safe-area-bottom: env(safe-area-inset-bottom, 35px);
+            --safe-area-bottom: env(safe-area-inset-bottom, 20px);
         }
 
         body, html {
@@ -29,14 +25,13 @@
             overflow: hidden;
             background-color: var(--bg-dark);
             color: var(--text-light);
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
         }
 
         .view {
             display: flex;
             flex-direction: column;
             height: 100%;
-            width: 100%;
         }
 
         .hidden {
@@ -47,8 +42,6 @@
             padding: 15px;
             background-color: var(--panel-dark);
             flex-shrink: 0;
-            margin: 10px 10px 0 10px;
-            border-radius: 8px;
         }
 
         select, .btn {
@@ -72,6 +65,15 @@
             font-weight: bold;
             cursor: pointer;
             flex: 1;
+            text-align: center;
+        }
+
+        .btn-green {
+            background-color: var(--green);
+        }
+
+        .btn-red {
+            background-color: var(--red);
         }
 
         .btn-orange {
@@ -79,35 +81,17 @@
             color: #1e272e;
         }
 
-        .btn-red {
-            background-color: var(--red);
-        }
-
-        .btn-green {
-            background-color: var(--green);
-        }
-
-        .btn-blue {
-            background-color: var(--blue);
-        }
-
-        #btn-start-training:disabled {
-            background-color: #576574;
-            cursor: not-allowed;
-            opacity: 0.5;
-        }
-
         main {
             flex-grow: 1;
-            overflow-y: auto;
+            overflow: hidden;
             padding: 15px;
+            display: flex;
         }
 
         .table-container {
             width: 100%;
+            overflow-y: auto;
             background-color: var(--panel-dark);
-            border-radius: 10px;
-            overflow-x: auto;
         }
 
         table {
@@ -129,62 +113,52 @@
 
         footer {
             padding: 15px;
-            padding-bottom: calc(45px + var(--safe-area-bottom)) !important;
+            padding-bottom: calc(15px + var(--safe-area-bottom));
             background-color: var(--panel-dark);
             flex-shrink: 0;
             display: flex;
             flex-direction: column;
             gap: 10px;
-            margin: 0 10px 10px 10px;
-            border-radius: 8px;
+        }
+
+        #btn-start-training:disabled {
+            background-color: #576574;
+            cursor: not-allowed;
+            opacity: 0.5;
         }
 
         .time-summary {
             display: flex;
             justify-content: space-between;
-            font-weight: bold;
         }
 
-        /* ==========================================================
-           TRAININGS-VIEW (PERFEKT ZENTRIERT FÜR SMARTPHONES)
-           ========================================================== */
         #training-view {
-            display: flex !important;
-            justify-content: center !important;
-            align-items: center !important;
-            text-align: center !important;
-            width: 100%;
+            display: grid;
+            place-content: center;
+            text-align: center;
             height: 100%;
+            padding-bottom: var(--safe-area-bottom);
         }
 
         .training-container {
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: space-between;
+            justify-content: center;
+            gap: 20px;
             width: 100%;
             max-width: 500px;
-            height: 100%;
             padding: 20px;
-            padding-bottom: calc(50px + var(--safe-area-bottom)) !important;
         }
 
         #timer-step-name {
-            font-size: 28px;
+            font-size: clamp(24px, 5vw, 32px);
             font-weight: 900;
-            text-transform: uppercase;
-        }
-
-        #timer-note {
-            font-size: 16px;
-            color: var(--orange);
         }
 
         #timer-countdown {
-            font-size: clamp(80px, 15vh, 130px);
+            font-size: clamp(80px, 25vh, 150px);
             font-weight: 900;
-            font-variant-numeric: tabular-nums;
-            margin: 15px 0;
         }
 
         .training-grid {
@@ -195,32 +169,13 @@
         }
 
         .info-card {
-            background-color: var(--panel-dark);
-            padding: 12px;
-            border-radius: 8px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
+            background-color: #1e272e;
+            padding: 15px;
+            border-radius: 10px;
         }
 
-            .info-card span {
-                font-size: 11px;
-                color: #a4b0be;
-            }
-
-            .info-card strong {
-                font-size: 15px;
-                margin-top: 3px;
-            }
-
         #timer-next-exercise {
-            background-color: rgba(255,255,255,0.05);
-            padding: 12px;
-            border-radius: 8px;
             font-weight: bold;
-            font-size: 15px;
-            width: 100%;
         }
 
         .timer-controls {
@@ -228,69 +183,45 @@
             gap: 10px;
             width: 100%;
         }
-
-            .timer-controls .btn {
-                padding: 15px;
-                font-size: 16px;
-            }
     </style>
 </head>
 <body>
-
-    <!-- HAUPTFENSTER: Plan-Verwaltung -->
     <div id="main-view" class="view">
         <header>
-            <select id="plan-selector">
-                <option value="">-- Pläne laden... --</option>
-            </select>
+            <select id="plan-selector"><option value="">-- Pläne laden --</option></select>
             <div class="header-buttons">
-                <button id="btn-load-github" class="btn btn-blue">🌐 Vorlage laden</button>
                 <label class="btn btn-orange" for="excel-input">📥 Excel Laden</label>
                 <input type="file" id="excel-input" accept=".xlsx" style="display:none;">
                 <button id="btn-delete-plan" class="btn btn-red">🗑️ Löschen</button>
             </div>
         </header>
-
         <main>
             <div class="table-container">
                 <table id="plan-table">
-                    <thead>
-                        <tr>
-                            <th>Phase</th>
-                            <th>Dauer</th>
-                            <th>Pause?</th>
-                            <th>Bemerkung</th>
-                        </tr>
-                    </thead>
+                    <thead><tr><th>Phase</th><th>Dauer</th><th>Pause?</th><th>Bemerkung</th></tr></thead>
                     <tbody></tbody>
                 </table>
             </div>
         </main>
-
         <footer>
             <div class="time-summary">
                 <div id="lbl-total-time">Gesamtdauer: 00:00</div>
-                <div id="lbl-end-time">Endzeit: --:-- Uhr</div>
+                <div id="lbl-end-time">Endzeit: --:--</div>
             </div>
-            <button id="btn-start-training" class="btn btn-green btn-large">⚡ TRAINING STARTEN</button>
+            <button id="btn-start-training" class="btn btn-green">⚡ TRAINING STARTEN</button>
         </footer>
     </div>
-
-    <!-- TRAININGS-MODUS (Vollbild-Timer) -->
     <div id="training-view" class="view hidden">
         <div class="training-container">
-            <h1 id="timer-step-name">LAUFEN</h1>
-            <p id="timer-note">Aufwärmen</p>
-            <div id="timer-countdown">10:00</div>
-
+            <h1 id="timer-step-name"></h1>
+            <p id="timer-note"></p>
+            <div id="timer-countdown"></div>
             <div class="training-grid">
-                <div class="info-card"><span>⏳ Restzeit</span><strong id="timer-total-remaining">00:00</strong></div>
-                <div class="info-card"><span>🔄 Phasen</span><strong id="timer-rounds">0/0</strong></div>
-                <div class="info-card"><span>🏁 Ende</span><strong id="timer-end-time">--:--</strong></div>
+                <div class="info-card"><span>⏳ Restzeit</span><strong id="timer-total-remaining"></strong></div>
+                <div class="info-card"><span>🔄 Phasen</span><strong id="timer-rounds"></strong></div>
+                <div class="info-card"><span>🏁 Ende</span><strong id="timer-end-time-active"></strong></div>
             </div>
-
-            <div id="timer-next-exercise">NÄCHSTE ÜBUNG: ...</div>
-
+            <div id="timer-next-exercise"></div>
             <div class="timer-controls">
                 <button id="btn-pause" class="btn btn-orange">⏸️ PAUSE</button>
                 <button id="btn-skip" class="btn btn-blue">⏭️ SKIP</button>
@@ -303,13 +234,11 @@
         let allPlans = {};
         let currentPlan = null;
         let activeInterval = null;
-        const boxingBell = new Audio('boxing-bell.mp3');
+        let boxingBell = null;
         let timerState = { stepIndex: 0, timeLeft: 0, totalRemaining: 0, isPaused: false };
 
-        // DIREKTLINK: Nutzt die offizielle Github-User-Domain für verzögerungsfreie Updates!
-        const githubExcelUrl = 'https://raw.githubusercontent.com/Michkern1AtDachsweg/trainingsplaner/main/Trainingsplan.xlsx';
-
         window.addEventListener('load', () => {
+            initEventListeners();
             try {
                 const saved = localStorage.getItem('trainingsplaene');
                 if (saved) {
@@ -322,14 +251,11 @@
                     }
                 }
             } catch (e) { console.error("Fehler beim Laden:", e); }
-            initEventListeners();
             renderPlanTable();
         });
 
         function initEventListeners() {
             document.getElementById('excel-input').addEventListener('change', handleExcelImport);
-            document.getElementById('btn-load-github').addEventListener('click', loadExcelFromGithub);
-
             document.getElementById('plan-selector').addEventListener('change', (e) => {
                 currentPlan = allPlans[e.target.value] || null;
                 renderPlanTable();
@@ -341,96 +267,46 @@
             document.getElementById('btn-stop').addEventListener('click', () => quitTraining(false));
         }
 
-        // Importiert Excel-Daten aus dem Array-Buffer
-        function importExcelData(arrayBuffer) {
-            try {
-                const data = new Uint8Array(arrayBuffer);
-                const workbook = XLSX.read(data, { type: 'array' });
-
-                if (!workbook || !workbook.SheetNames.length) {
-                    throw new Error("Ungültiges Excel-Format.");
-                }
-
-                workbook.SheetNames.forEach(sheetName => {
-                    const ws = workbook.Sheets[sheetName];
-                    const jsonData = XLSX.utils.sheet_to_json(ws, { header: 1 });
-                    const newPlan = { name: sheetName, steps: [] };
-                    let headerFound = false;
-
-                    for (const row of jsonData) {
-                        if (!row || !row[0]) continue;
-                        if (!headerFound && row[0].toString().toLowerCase().includes('zeit')) { headerFound = true; continue; }
-                        if (!headerFound) continue;
-
-                        const [baseName, workMin, repeats, pauseMin, , note] = row;
-                        const parsedWorkMin = parseFloat(String(workMin).replace(',', '.')) || 0;
-                        const parsedRepeats = parseInt(repeats) || 1;
-                        const parsedPauseMin = parseFloat(String(pauseMin).replace(',', '.')) || 0;
-
-                        for (let r = 1; r <= parsedRepeats; r++) {
-                            newPlan.steps.push({
-                                name: `${baseName}${parsedRepeats > 1 ? ` (Runde ${r}/${parsedRepeats})` : ''}`,
-                                duration: parsedWorkMin * 60,
-                                isPause: false,
-                                note: note || ""
-                            });
-                            if (parsedPauseMin > 0) {
-                                newPlan.steps.push({
-                                    name: "Pause",
-                                    duration: parsedPauseMin * 60,
-                                    isPause: true,
-                                    note: `Nächste Übung: ${baseName}`
-                                });
-                            }
-                        }
-                    }
-                    if (newPlan.steps.length > 0) allPlans[sheetName] = newPlan;
-                });
-
-                saveToStorage();
-                updatePlanSelector();
-
-                const lastPlanName = workbook.SheetNames[workbook.SheetNames.length - 1];
-                if (allPlans[lastPlanName]) {
-                    document.getElementById('plan-selector').value = lastPlanName;
-                    currentPlan = allPlans[lastPlanName];
-                    renderPlanTable();
-                }
-                alert("Trainingspläne erfolgreich geladen!");
-            } catch (err) {
-                alert("Verarbeitungsfehler: Bitte stelle sicher, dass die hochgeladene Datei eine korrekte Trainingsplan-Excel ist.");
-            }
-        }
-
-        // Lädt die Excel-Datei live und treffsicher direkt von Github herunter
-        function loadExcelFromGithub() {
-            const btn = document.getElementById('btn-load-github');
-            btn.textContent = "⌛ Lädt...";
-            btn.disabled = true;
-
-            fetch(githubExcelUrl)
-                .then(response => {
-                    if (!response.ok) throw new Error("Verbindungsfehler zu GitHub. Status: " & response.status);
-                    return response.arrayBuffer();
-                })
-                .then(arrayBuffer => {
-                    importExcelData(arrayBuffer);
-                    btn.textContent = "🌐 Vorlage laden";
-                    btn.disabled = false;
-                })
-                .catch(err => {
-                    alert("Import fehlgeschlagen: " + err.message);
-                    btn.textContent = "🌐 Vorlage laden";
-                    btn.disabled = false;
-                });
-        }
-
         function handleExcelImport(e) {
             const file = e.target.files[0];
             if (!file) return;
             const reader = new FileReader();
             reader.onload = (event) => {
-                importExcelData(event.target.result);
+                try {
+                    const data = new Uint8Array(event.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    workbook.SheetNames.forEach(sheetName => {
+                        const ws = workbook.Sheets[sheetName];
+                        const jsonData = XLSX.utils.sheet_to_json(ws, { header: 1 });
+                        const newPlan = { name: sheetName, steps: [] };
+                        let headerFound = false;
+                        for (const row of jsonData) {
+                            if (!row || !row[0]) continue;
+                            if (!headerFound && row[0].toString().toLowerCase().includes('zeit')) { headerFound = true; continue; }
+                            if (!headerFound) continue;
+                            const [baseName, workMin, repeats, pauseMin, , note] = row;
+                            if (!baseName) continue;
+                            const parsedWorkMin = parseFloat(String(workMin || 0).replace(',', '.'));
+                            const parsedRepeats = parseInt(repeats) || 1;
+                            const parsedPauseMin = parseFloat(String(pauseMin || 0).replace(',', '.'));
+                            for (let r = 1; r <= parsedRepeats; r++) {
+                                newPlan.steps.push({ name: `${baseName}${parsedRepeats > 1 ? ` (Runde ${r}/${parsedRepeats})` : ''}`, duration: parsedWorkMin * 60, isPause: false, note: note || "" });
+                                if (parsedPauseMin > 0) {
+                                    newPlan.steps.push({ name: "Pause", duration: parsedPauseMin * 60, isPause: true, note: `Nächste Übung: ${baseName}` });
+                                }
+                            }
+                        }
+                        if (newPlan.steps.length > 0) allPlans[sheetName] = newPlan;
+                    });
+                    saveToStorage();
+                    updatePlanSelector();
+                    const lastPlanName = workbook.SheetNames[workbook.SheetNames.length - 1];
+                    if (allPlans[lastPlanName]) {
+                        document.getElementById('plan-selector').value = lastPlanName;
+                        currentPlan = allPlans[lastPlanName];
+                        renderPlanTable();
+                    }
+                } catch (err) { alert("Fehler beim Lesen der Excel-Datei."); }
             };
             reader.readAsArrayBuffer(file);
         }
@@ -458,25 +334,22 @@
             const tableBody = document.getElementById('plan-table').querySelector('tbody');
             const startButton = document.getElementById('btn-start-training');
             tableBody.innerHTML = "";
-
             if (!currentPlan || currentPlan.steps.length === 0) {
                 document.getElementById('lbl-total-time').textContent = "Gesamtdauer: 00:00";
                 document.getElementById('lbl-end-time').textContent = "Endzeit: --:--";
                 startButton.disabled = true;
                 return;
             }
-
             startButton.disabled = false;
             let totalSeconds = currentPlan.steps.reduce((acc, step) => acc + step.duration, 0);
             currentPlan.steps.forEach(step => {
                 const tr = document.createElement('tr');
-                if (step.isPause) tr.style.backgroundColor = "rgba(41, 128, 185, 0.15)";
-                tr.innerHTML = `<td>${step.name}</td><td>${formatTime(step.duration)}</td><td>${step.isPause ? "✔️" : "❌"}</td><td style="font-size:12px;color:#888;">${step.note}</td>`;
+                tr.innerHTML = `<td>${step.name}</td><td>${formatTime(step.duration)}</td><td>${step.isPause ? "✔️" : "❌"}</td><td>${step.note || ''}</td>`;
                 tableBody.appendChild(tr);
             });
             document.getElementById('lbl-total-time').textContent = `Gesamtdauer: ${formatTime(totalSeconds)}`;
             const end = new Date(Date.now() + totalSeconds * 1000);
-            document.getElementById('lbl-end-time').textContent = `Endzeit: ${end.getHours().toString().padStart(2, '0')}:${end.getMinutes().toString().padStart(2, '0')} Uhr`;
+            document.getElementById('lbl-end-time').textContent = `Endzeit: ${end.getHours().toString().padStart(2, '0')}:${end.getMinutes().toString().padStart(2, '0')}`;
         }
 
         function formatTime(seconds) {
@@ -491,6 +364,10 @@
 
         function startTraining() {
             if (!currentPlan || currentPlan.steps.length === 0) return;
+            if (!boxingBell) {
+                try { boxingBell = new Audio('boxing-bell.mp3'); boxingBell.load(); }
+                catch (e) { console.warn("Audio-Kontext konnte nicht erstellt werden."); }
+            }
             document.getElementById('main-view').classList.add('hidden');
             document.getElementById('training-view').classList.remove('hidden');
             timerState = { stepIndex: 0, isPaused: false, totalRemaining: currentPlan.steps.reduce((acc, s) => acc + s.duration, 0) };
@@ -500,8 +377,8 @@
         function runStep() {
             if (timerState.stepIndex >= currentPlan.steps.length) {
                 clearInterval(activeInterval);
-                try { boxingBell.play(); } catch (e) { }
-                alert("Training beendet! Starke Leistung!");
+                if (boxingBell) boxingBell.play();
+                alert("Training beendet!");
                 quitTraining(true);
                 return;
             }
@@ -512,26 +389,13 @@
             document.getElementById('training-view').style.backgroundColor = step.isPause ? "#2980b9" : "#c0392b";
             updateNextExercise();
             updateTimerDisplay();
-            try { boxingBell.play(); } catch (e) { }
+            if (boxingBell) boxingBell.play();
             clearInterval(activeInterval);
             activeInterval = setInterval(timerTick, 1000);
         }
 
         function timerTick() {
             if (timerState.isPaused) return;
-
-            if (timerState.timeLeft <= 4 && timerState.timeLeft > 1) {
-                try {
-                    const ctx = new (window.AudioContext || window.webkitAudioContext)();
-                    const osc = ctx.createOscillator();
-                    osc.type = "sine";
-                    osc.frequency.value = 1800;
-                    osc.connect(ctx.destination);
-                    osc.start();
-                    setTimeout(() => osc.stop(), 80);
-                } catch (e) { }
-            }
-
             if (timerState.timeLeft <= 1) {
                 timerState.stepIndex++;
                 runStep();
@@ -547,7 +411,7 @@
             document.getElementById('timer-total-remaining').textContent = formatTime(timerState.totalRemaining);
             document.getElementById('timer-rounds').textContent = `${timerState.stepIndex + 1}/${currentPlan.steps.length}`;
             const end = new Date(Date.now() + timerState.totalRemaining * 1000);
-            document.getElementById('timer-end-time').textContent = `${end.getHours().toString().padStart(2, '0')}:${end.getMinutes().toString().padStart(2, '0')}`;
+            document.getElementById('timer-end-time-active').textContent = `${end.getHours().toString().padStart(2, '0')}:${end.getMinutes().toString().padStart(2, '0')}`;
         }
 
         function updateNextExercise() {
@@ -572,7 +436,6 @@
                 clearInterval(activeInterval);
                 document.getElementById('training-view').classList.add('hidden');
                 document.getElementById('main-view').classList.remove('hidden');
-                renderPlanTable();
             }
         }
     </script>
