@@ -130,7 +130,7 @@ footer {
     background-color: var(--panel-dark);
     padding: 15px;
     border-radius: 10px;
-    display: none; /* Wird per JS eingeblendet */
+    display: none;
     flex-direction: column;
     gap: 10px;
     flex-shrink: 0;
@@ -143,38 +143,36 @@ footer {
     font-weight: bold;
 }
 
+/* ** FINALE KORREKTUR FÜR ZENTRIERUNG ** */
 #training-view {
-    justify-content: center;
-    align-items: center;
-    text-align: center;
+    display: grid; /* Ersetzt flex, um perfektes Zentrieren zu ermöglichen */
+    place-content: center; /* Zentriert den Container horizontal und vertikal */
+    text-align: center; /* Zentriert den Text innerhalb der Elemente */
 }
 
 .training-container {
-    display: grid;
-    grid-template-rows: auto auto 1fr auto auto; /* Angepasste Struktur */
-    height: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 20px; /* Abstand zwischen den Elementen */
     width: 100%;
     max-width: 500px;
     padding: 20px;
-    gap: 15px;
 }
 
 #timer-step-name {
-    font-size: 28px;
+    font-size: 32px;
     font-weight: 900;
 }
 
 #timer-note {
-    font-size: 16px;
+    font-size: 18px;
     color: var(--orange);
 }
 
 #timer-countdown {
-    font-size: 10vh; /* Passt sich der Bildschirmhöhe an */
+    font-size: clamp(80px, 20vw, 120px); /* Skaliert mit Bildschirmgröße */
     font-weight: 900;
     font-variant-numeric: tabular-nums;
-    display: grid;
-    place-content: center;
 }
 
 .training-grid {
@@ -185,21 +183,21 @@ footer {
 
 .info-card {
     background-color: var(--panel-dark);
-    padding: 12px;
+    padding: 15px;
     border-radius: 10px;
     display: flex;
     flex-direction: column;
     justify-content: center;
+    gap: 5px;
 }
 
     .info-card span {
-        font-size: 12px;
+        font-size: 14px;
         color: #a4b0be;
     }
 
     .info-card strong {
-        font-size: 16px;
-        margin-top: 5px;
+        font-size: 18px;
     }
 
 #timer-next-exercise {
@@ -207,6 +205,7 @@ footer {
     padding: 15px;
     border-radius: 8px;
     font-weight: bold;
+    font-size: 16px;
 }
 
 .timer-controls {
