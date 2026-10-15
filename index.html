@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Box- & Intervalltimer Pro</title>
     <link rel="manifest" href="manifest.json">
-    <!-- Excel-Parser Bibliothek -->
+    <!-- Excel-Parser Bibliothek (Sorgt für den stabilen Import) -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
     <style>
@@ -18,6 +18,7 @@
             --red: #e84118;
             --orange: #fbc531;
             --blue: #00a8ff;
+            /* Zwingt einen extra dicken Sicherheitsabstand für Handyleisten unten */
             --safe-area-bottom: env(safe-area-inset-bottom, 35px);
         }
 
@@ -128,9 +129,10 @@
             top: 0;
         }
 
+        /* Drückt die Startleiste weit nach oben, schützt vor der Handyleiste */
         footer {
             padding: 15px;
-            padding-bottom: calc(55px + var(--safe-area-bottom)) !important;
+            padding-bottom: calc(55px + var(--safe-area-bottom)) !important; /* Dicker Schutzabstand */
             background-color: var(--panel-dark);
             flex-shrink: 0;
             display: flex;
@@ -146,9 +148,7 @@
             font-weight: bold;
         }
 
-        /* ==========================================================
-           TRAININGS-VIEW (PERFEKT ZENTRIERT FÜR SMARTPHONES)
-           ========================================================== */
+        /* Zentrierter Timer-Bildschirm */
         #training-view {
             display: flex !important;
             justify-content: center !important;
@@ -245,6 +245,7 @@
                 <option value="">-- Pläne laden... --</option>
             </select>
             <div class="header-buttons">
+                <!-- Neuer, blauer Button zum direkten Laden der Vorlage aus deinem GitHub-Verzeichnis -->
                 <button id="btn-load-github" class="btn btn-blue">🌐 Vorlage laden</button>
                 <label class="btn btn-orange" for="excel-input">📥 Excel Laden</label>
                 <input type="file" id="excel-input" accept=".xlsx" style="display:none;">
@@ -301,15 +302,18 @@
     </div>
 
     <script>
+        // *** URSPRÜNGLICHER, STABILER CODE (DER BEI DIR FUNKTIONIERT HAT) ***
         let allPlans = {};
         let currentPlan = null;
         let activeInterval = null;
         let boxingBell = null;
         let timerState = { stepIndex: 0, timeLeft: 0, totalRemaining: 0, isPaused: false };
 
+        // Falls du die Vorlage von GitHub lädst, wird dieser Link gerufen:
         const githubExcelUrl = 'https://raw.githubusercontent.com/Michkern1AtDachsweg/trainingsplaner/main/Trainingsplan.xlsx';
 
         window.addEventListener('load', () => {
+            initEventListeners();
             try {
                 const saved = localStorage.getItem('trainingsplaene');
                 if (saved) {
@@ -322,14 +326,12 @@
                     }
                 }
             } catch (e) { console.error("Fehler beim Laden:", e); }
-            initEventListeners();
             renderPlanTable();
         });
 
         function initEventListeners() {
-            // KORREKTUR: Funktionsname exakt synchronisiert!
+            // "change"-Event für den manuellen Excel-Laden-Button registrieren
             document.getElementById('excel-input').addEventListener('change', handleExcelImport);
-            document.getElementById('btn-load-github').addEventListener('click', loadExcelFromGithub);
 
             document.getElementById('plan-selector').addEventListener('change', (e) => {
                 currentPlan = allPlans[e.target.value] || null;
@@ -337,131 +339,121 @@
             });
             document.getElementById('btn-delete-plan').addEventListener('click', deleteCurrentPlan);
             document.getElementById('btn-start-training').addEventListener('click', startTraining);
+            document.getElementById('btn-load-github').addEventListener('click', loadExcelFromGithub);
             document.getElementById('btn-pause').addEventListener('click', togglePause);
             document.getElementById('btn-skip').addEventListener('click', skipStep);
             document.getElementById('btn-stop').addEventListener('click', () => quitTraining(false));
         }
 
-        // Importiert und liest die Excel-Daten fehlerfrei aus
-        function importExcelData(arrayBuffer) {
-            try {
-                const data = new Uint8Array(arrayBuffer);
-                const workbook = XLSX.read(data, { type: 'array' });
+        // *** DIE ORIGINALE, BEWÄHRTE PARSER-LOGIK ***
+        function processExcelData(arrayBuffer) {
+            const data = new Uint8Array(arrayBuffer);
+            const workbook = XLSX.read(data, { type: 'array' });
+            const tempPlans = {};
 
-                if (!workbook || !workbook.SheetNames.length) {
-                    throw new Error("Ungültiges Dateiformat.");
-                }
+            workbook.SheetNames.forEach(sheetName => {
+                const ws = workbook.Sheets[sheetName];
+                const jsonData = XLSX.utils.sheet_to_json(ws, { header: 1 });
+                const newPlan = { name: sheetName, steps: [] };
+                let headerFound = false;
 
-                allPlans = {}; // Alten Speicher überschreiben
+                for (const row of jsonData) {
+                    if (!row || !row[0]) continue;
+                    if (!headerFound && row[0].toString().toLowerCase().includes('zeit')) { headerFound = true; continue; }
+                    if (!headerFound) continue;
 
-                workbook.SheetNames.forEach(sheetName => {
-                    const ws = workbook.Sheets[sheetName];
-                    const jsonData = XLSX.utils.sheet_to_json(ws, { header: 1 });
+                    // Der originale Zuweisungs-Befehl aus der funktionierenden Version!
+                    const [baseName, workMin, repeats, pauseMin, , note] = row;
+                    if (!baseName) continue;
 
-                    if (jsonData.length === 0) return;
+                    const parsedWorkMin = parseFloat(String(workMin || 0).replace(',', '.'));
+                    const parsedRepeats = parseInt(repeats) || 1;
+                    const parsedPauseMin = parseFloat(String(pauseMin || 0).replace(',', '.'));
 
-                    const newPlan = { name: sheetName, steps: [] };
-                    let headerFound = false;
-
-                    for (const row of jsonData) {
-                        if (!row || row.length < 1 || !row[0]) continue;
-
-                        // Kopfzeile suchen
-                        if (!headerFound && row[0].toString().toLowerCase().includes('zeit')) {
-                            headerFound = true;
-                            continue;
-                        }
-                        if (!headerFound) continue;
-
-                        const baseName = row[0] ? row[0].toString().trim() : "";
-                        const workMin = (row[1] !== undefined) ? parseFloat(String(row[1]).replace(',', '.')) : 0;
-                        const repeats = (row[2] !== undefined) ? parseInt(row[2]) : 1;
-                        const pauseMin = (row[3] !== undefined) ? parseFloat(String(row[3]).replace(',', '.')) : 0;
-                        const note = (row[5] !== undefined) ? row[5].toString().trim() : "";
-
-                        if (!baseName) continue;
-
-                        for (let r = 1; r <= repeats; r++) {
+                    for (let r = 1; r <= parsedRepeats; r++) {
+                        newPlan.steps.push({
+                            name: `${baseName}${parsedRepeats > 1 ? ` (Runde ${r}/${parsedRepeats})` : ''}`,
+                            duration: parsedWorkMin * 60,
+                            isPause: false,
+                            note: note || ""
+                        });
+                        if (parsedPauseMin > 0) {
                             newPlan.steps.push({
-                                name: `${baseName}${repeats > 1 ? ` (Runde ${r}/${repeats})` : ''}`,
-                                duration: workMin * 60,
-                                isPause: false,
-                                note: note
+                                name: "Pause",
+                                duration: parsedPauseMin * 60,
+                                isPause: true,
+                                note: `Nächste Übung: ${baseName}`
                             });
-                            if (pauseMin > 0) {
-                                newPlan.steps.push({
-                                    name: "Pause",
-                                    duration: pauseMin * 60,
-                                    isPause: true,
-                                    note: `Nächste Übung: ${baseName}`
-                                });
-                            }
                         }
                     }
-                    if (newPlan.steps.length > 0) {
-                        allPlans[sheetName] = newPlan;
-                    }
-                });
-
-                saveToStorage();
-                updatePlanSelector();
-
-                const planNames = Object.keys(allPlans);
-                if (planNames.length > 0) {
-                    const firstPlan = planNames[0];
-                    document.getElementById('plan-selector').value = firstPlan;
-                    currentPlan = allPlans[firstPlan];
-                    renderPlanTable();
                 }
-                alert("Trainingspläne erfolgreich geladen!");
-            } catch (err) {
-                alert("Verarbeitungsfehler: Bitte überprüfe das Format deiner Excel-Datei. Fehlermeldung: " + err.message);
-            }
+                if (newPlan.steps.length > 0) tempPlans[sheetName] = newPlan;
+            });
+            return tempPlans;
         }
 
-        // Holt die Excel-Datei direkt von GitHub
-        function loadExcelFromGithub() {
-            const btn = document.getElementById('btn-load-github');
-            btn.textContent = "⌛ Lädt...";
-            btn.disabled = true;
-
-            fetch(githubExcelUrl)
-                .then(response => {
-                    if (!response.ok) throw new Error("GitHub-Verbindung fehlgeschlagen (Status: " + response.status + ")");
-                    return response.arrayBuffer();
-                })
-                .then(arrayBuffer => {
-                    importExcelData(arrayBuffer);
-                    btn.textContent = "🌐 Vorlage laden";
-                    btn.disabled = false;
-                })
-                .catch(err => {
-                    alert("Import von GitHub fehlgeschlagen: " + err.message + "\n\nHinweis: Nutze den 'Eigene Excel'-Button als Alternative.");
-                    btn.textContent = "🌐 Vorlage laden";
-                    btn.disabled = false;
-                });
-        }
-
+        // Manueller Import (Der Button, der zuvor gelaufen ist!)
         function handleExcelImport(e) {
             const file = e.target.files[0];
             if (!file) return;
             const reader = new FileReader();
             reader.onload = (event) => {
-                importExcelData(event.target.result);
+                try {
+                    const loadedPlans = processExcelData(event.target.result);
+                    allPlans = { ...allPlans, ...loadedPlans };
+                    saveToStorage();
+                    updatePlanSelector();
+                    const lastPlanName = Object.keys(loadedPlans).pop();
+                    if (lastPlanName) {
+                        document.getElementById('plan-selector').value = lastPlanName;
+                        currentPlan = allPlans[lastPlanName];
+                    }
+                    renderPlanTable();
+                    alert("Trainingspläne erfolgreich geladen!");
+                } catch (err) { alert("Fehler beim Verarbeiten der Excel-Daten."); }
             };
             reader.readAsArrayBuffer(file);
         }
 
+        // GitHub Import
+        function loadExcelFromGithub() {
+            const btn = document.getElementById('btn-load-github');
+            btn.textContent = "⌛";
+            btn.disabled = true;
+
+            fetch(githubExcelUrl)
+                .then(response => {
+                    if (!response.ok) throw new Error(`Netzwerkfehler (${response.status})`);
+                    return response.arrayBuffer();
+                })
+                .then(arrayBuffer => {
+                    const loadedPlans = processExcelData(arrayBuffer);
+                    allPlans = { ...allPlans, ...loadedPlans };
+                    saveToStorage();
+                    updatePlanSelector();
+                    const lastPlanName = Object.keys(loadedPlans).pop();
+                    if (lastPlanName) {
+                        document.getElementById('plan-selector').value = lastPlanName;
+                        currentPlan = allPlans[lastPlanName];
+                    }
+                    renderPlanTable();
+                    alert("Vorlage von GitHub erfolgreich geladen!");
+                })
+                .catch(err => alert(`Import fehlgeschlagen: Bitte stelle sicher, dass die Datei 'Trainingsplan.xlsx' im Hauptordner deines GitHubs liegt.`))
+                .finally(() => {
+                    btn.textContent = "🌐 Vorlage laden";
+                    btn.disabled = false;
+                });
+        }
+
         function deleteCurrentPlan() {
-            if (!currentPlan) return;
-            if (confirm(`Soll der Plan "${currentPlan.name}" wirklich gelöscht werden?`)) {
-                delete allPlans[currentPlan.name];
-                currentPlan = null;
-                document.getElementById('plan-selector').value = "";
-                saveToStorage();
-                updatePlanSelector();
-                renderPlanTable();
-            }
+            if (!currentPlan || !confirm(`Soll der Plan "${currentPlan.name}" wirklich gelöscht werden?`)) return;
+            delete allPlans[currentPlan.name];
+            currentPlan = null;
+            document.getElementById('plan-selector').value = "";
+            saveToStorage();
+            updatePlanSelector();
+            renderPlanTable();
         }
 
         function updatePlanSelector() {
@@ -488,7 +480,7 @@
             currentPlan.steps.forEach(step => {
                 const tr = document.createElement('tr');
                 if (step.isPause) tr.style.backgroundColor = "rgba(41, 128, 185, 0.15)";
-                tr.innerHTML = `<td>${step.name}</td><td>${formatTime(step.duration)}</td><td>${step.isPause ? "✔️" : "❌"}</td><td>${step.note || ""}</td>`;
+                tr.innerHTML = `<td>${step.name}</td><td>${formatTime(step.duration)}</td><td>${step.isPause ? '✔️' : '❌'}</td><td>${step.note || ''}</td>`;
                 tableBody.appendChild(tr);
             });
             document.getElementById('lbl-total-time').textContent = `Gesamtdauer: ${formatTime(totalSeconds)}`;
@@ -496,10 +488,10 @@
             document.getElementById('lbl-end-time').textContent = `Endzeit: ${end.getHours().toString().padStart(2, '0')}:${end.getMinutes().toString().padStart(2, '0')} Uhr`;
         }
 
-        function formatTime(seconds) {
-            const m = Math.floor(seconds / 60).toString().padStart(2, '0');
-            const s = Math.round(seconds % 60).toString().padStart(2, '0');
-            return `${m}:${s}`;
+        function formatTime(s) {
+            const m = Math.floor(s / 60).toString().padStart(2, '0');
+            const sec = Math.round(s % 60).toString().padStart(2, '0');
+            return `${m}:${sec}`;
         }
 
         function saveToStorage() {
@@ -508,14 +500,12 @@
 
         function startTraining() {
             if (!currentPlan || currentPlan.steps.length === 0) return;
-
             if (!boxingBell) {
                 try {
                     boxingBell = new Audio('boxing-bell.mp3');
                     boxingBell.load();
                 } catch (e) { }
             }
-
             document.getElementById('main-view').classList.add('hidden');
             document.getElementById('training-view').classList.remove('hidden');
             timerState = { stepIndex: 0, isPaused: false, totalRemaining: currentPlan.steps.reduce((acc, s) => acc + s.duration, 0) };
@@ -525,7 +515,7 @@
         function runStep() {
             if (timerState.stepIndex >= currentPlan.steps.length) {
                 clearInterval(activeInterval);
-                try { boxingBell.play(); } catch (e) { }
+                if (boxingBell) boxingBell.play();
                 alert("Training beendet! Starke Leistung!");
                 quitTraining(true);
                 return;
@@ -537,7 +527,7 @@
             document.getElementById('training-view').style.backgroundColor = step.isPause ? "#2980b9" : "#c0392b";
             updateNextExercise();
             updateTimerDisplay();
-            try { boxingBell.play(); } catch (e) { }
+            if (boxingBell) boxingBell.play();
             clearInterval(activeInterval);
             activeInterval = setInterval(timerTick, 1000);
         }
@@ -545,6 +535,7 @@
         function timerTick() {
             if (timerState.isPaused) return;
 
+            // Countdown-Pings bei Sekunde 3, 2, 1 (asynchron über die Audio-API)
             if (timerState.timeLeft <= 4 && timerState.timeLeft > 1) {
                 try {
                     const ctx = new (window.AudioContext || window.webkitAudioContext)();
