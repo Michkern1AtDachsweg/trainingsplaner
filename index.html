@@ -2,12 +2,11 @@
 <html lang="de">
 <head>
     <meta charset="UTF-8">
+    <!-- FINALE KORREKTUR: Erzwingt die Nutzung der "Safe Area" auf Smartphones -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Box- & Intervalltimer Pro</title>
-    <!-- v=2 zwingt das Smartphone, das neue CSS-Layout sofort frisch zu laden! -->
-    <link rel="stylesheet" href="styles.css?v=2">
+    <title>Trainingsplaner Pro</title>
+    <link rel="stylesheet" href="styles.css">
     <link rel="manifest" href="manifest.json">
-    <!-- Excel-Parser Bibliothek -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
 <body>
@@ -36,9 +35,7 @@
                             <th>Bemerkung</th>
                         </tr>
                     </thead>
-                    <tbody>
-                        <!-- Dynamisch befüllt -->
-                    </tbody>
+                    <tbody></tbody>
                 </table>
             </div>
         </main>
@@ -57,26 +54,13 @@
         <div class="training-container">
             <h1 id="timer-step-name">LAUFEN</h1>
             <p id="timer-note">Aufwärmen</p>
-
             <div id="timer-countdown">10:00</div>
-
             <div class="training-grid">
-                <div class="info-card">
-                    <span>⏳ Restzeit</span>
-                    <strong id="timer-total-remaining">00:00</strong>
-                </div>
-                <div class="info-card">
-                    <span>🔄 Phasen</span>
-                    <strong id="timer-rounds">0 / 0</strong>
-                </div>
-                <div class="info-card">
-                    <span>🏁 Endzeit</span>
-                    <strong id="timer-end-time">--:--</strong>
-                </div>
+                <div class="info-card"><span>⏳ Restzeit</span><strong id="timer-total-remaining">00:00</strong></div>
+                <div class="info-card"><span>🔄 Phasen</span><strong id="timer-rounds">0 / 0</strong></div>
+                <div class="info-card"><span>🏁 Endzeit</span><strong id="timer-end-time">--:--</strong></div>
             </div>
-
             <div id="timer-next-exercise">NÄCHSTE ÜBUNG: ...</div>
-
             <div class="timer-controls">
                 <button id="btn-pause" class="btn btn-orange btn-large">⏸️ PAUSE</button>
                 <button id="btn-skip" class="btn btn-blue btn-large">⏭️ ÜBERSPRINGEN</button>

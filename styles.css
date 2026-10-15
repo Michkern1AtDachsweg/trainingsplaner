@@ -7,6 +7,8 @@
     --red: #e84118;
     --orange: #fbc531;
     --blue: #00a8ff;
+    /* FINALE KORREKTUR: Sicherheitsabstand für die Handy-Navigationsleiste */
+    --safe-area-inset-bottom: env(safe-area-inset-bottom, 20px);
 }
 
 * {
@@ -35,10 +37,10 @@ body {
 }
 
 header {
-    background-color: var(--panel-dark);
     padding: 15px;
-    border-radius: 10px;
     margin: 15px 15px 0 15px;
+    background-color: var(--panel-dark);
+    border-radius: 10px;
     display: flex;
     flex-direction: column;
     gap: 10px;
@@ -125,18 +127,19 @@ th {
     top: 0;
 }
 
-/* ** FINALE KORREKTUR: Footer ist IMMER sichtbar ** */
 footer {
     margin: 15px;
     background-color: var(--panel-dark);
     padding: 15px;
     border-radius: 10px;
-    display: flex; /* Immer anzeigen */
+    display: flex;
     flex-direction: column;
     gap: 10px;
     flex-shrink: 0;
+    /* FINALE KORREKTUR: Fügt unten den Sicherheitsabstand hinzu */
+    padding-bottom: calc(15px + var(--safe-area-inset-bottom));
 }
-/* Deaktivierten Button ausgrauen */
+
 #btn-start-training:disabled {
     background-color: #576574;
     cursor: not-allowed;
@@ -153,5 +156,75 @@ footer {
     display: grid;
     place-content: center;
     text-align: center;
+    /* FINALE KORREKTUR: Fügt unten den Sicherheitsabstand hinzu */
+    padding-bottom: var(--safe-area-inset-bottom);
 }
-/* ... (der Rest des CSS bleibt gleich) ... */
+
+.training-container {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    width: 100%;
+    max-width: 500px;
+    padding: 20px;
+    height: 100%;
+    justify-content: center; /* Zentriert den Inhalt vertikal */
+}
+
+#timer-step-name {
+    font-size: 28px;
+    font-weight: 900;
+}
+
+#timer-note {
+    font-size: 16px;
+    color: var(--orange);
+}
+
+#timer-countdown {
+    font-size: clamp(80px, 20vh, 120px);
+    font-weight: 900;
+    font-variant-numeric: tabular-nums;
+    margin: 10px 0;
+}
+
+.training-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    width: 100%;
+}
+
+.info-card {
+    background-color: #1e272e;
+    padding: 15px;
+    border-radius: 10px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 5px;
+}
+
+    .info-card span {
+        font-size: 12px;
+        color: #a4b0be;
+    }
+
+    .info-card strong {
+        font-size: 18px;
+    }
+
+#timer-next-exercise {
+    background-color: rgba(255, 255, 255, 0.05);
+    padding: 15px;
+    border-radius: 8px;
+    font-weight: bold;
+    font-size: 15px;
+    width: 100%;
+}
+
+.timer-controls {
+    display: flex;
+    gap: 10px;
+    width: 100%;
+}
