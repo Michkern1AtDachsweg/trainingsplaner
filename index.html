@@ -18,8 +18,7 @@
             --red: #e84118;
             --orange: #fbc531;
             --blue: #00a8ff;
-            /* Sicherheitsabstand für die Navigationsleiste auf Smartphones */
-            --safe-area-bottom: env(safe-area-inset-bottom, 30px);
+            --safe-area-bottom: env(safe-area-inset-bottom, 35px);
         }
 
         body, html {
@@ -129,10 +128,9 @@
             top: 0;
         }
 
-        /* Drückt die Startleiste weit nach oben, um vor der Handyleiste geschützt zu sein */
         footer {
             padding: 15px;
-            padding-bottom: calc(55px + var(--safe-area-bottom)) !important; /* Dicker Schutzabstand */
+            padding-bottom: calc(55px + var(--safe-area-bottom)) !important;
             background-color: var(--panel-dark);
             flex-shrink: 0;
             display: flex;
@@ -148,7 +146,9 @@
             font-weight: bold;
         }
 
-        /* Perfect Center Trainingsmodus */
+        /* ==========================================================
+           TRAININGS-VIEW (PERFEKT ZENTRIERT FÜR SMARTPHONES)
+           ========================================================== */
         #training-view {
             display: flex !important;
             justify-content: center !important;
@@ -246,7 +246,7 @@
             </select>
             <div class="header-buttons">
                 <button id="btn-load-github" class="btn btn-blue">🌐 Vorlage laden</button>
-                <label class="btn btn-orange" for="excel-input">📥 Eigene Excel</label>
+                <label class="btn btn-orange" for="excel-input">📥 Excel Laden</label>
                 <input type="file" id="excel-input" accept=".xlsx" style="display:none;">
                 <button id="btn-delete-plan" class="btn btn-red">🗑️ Löschen</button>
             </div>
@@ -327,7 +327,8 @@
         });
 
         function initEventListeners() {
-            document.getElementById('excel-input').addEventListener('change', handleLocalExcelImport);
+            // KORREKTUR: Funktionsname exakt synchronisiert!
+            document.getElementById('excel-input').addEventListener('change', handleExcelImport);
             document.getElementById('btn-load-github').addEventListener('click', loadExcelFromGithub);
 
             document.getElementById('plan-selector').addEventListener('change', (e) => {
@@ -341,12 +342,17 @@
             document.getElementById('btn-stop').addEventListener('click', () => quitTraining(false));
         }
 
-        // *** EXTRA-ROBUSTE PARSER-FUNKTION (Spalten-Indizes sind gegen Absturz gesichert!) ***
-        function processExcelData(arrayBuffer) {
+        // Importiert und liest die Excel-Daten fehlerfrei aus
+        function importExcelData(arrayBuffer) {
             try {
                 const data = new Uint8Array(arrayBuffer);
                 const workbook = XLSX.read(data, { type: 'array' });
-                const tempPlans = {};
+
+                if (!workbook || !workbook.SheetNames.length) {
+                    throw new Error("Ungültiges Dateiformat.");
+                }
+
+                allPlans = {}; // Alten Speicher überschreiben
 
                 workbook.SheetNames.forEach(sheetName => {
                     const ws = workbook.Sheets[sheetName];
@@ -367,7 +373,6 @@
                         }
                         if (!headerFound) continue;
 
-                        // Einzelne Spaltenwerte absolut sicher auslesen
                         const baseName = row[0] ? row[0].toString().trim() : "";
                         const workMin = (row[1] !== undefined) ? parseFloat(String(row[1]).replace(',', '.')) : 0;
                         const repeats = (row[2] !== undefined) ? parseInt(row[2]) : 1;
@@ -393,43 +398,28 @@
                             }
                         }
                     }
-
                     if (newPlan.steps.length > 0) {
-                        tempPlans[sheetName] = newPlan;
+                        allPlans[sheetName] = newPlan;
                     }
                 });
 
-                return tempPlans;
+                saveToStorage();
+                updatePlanSelector();
+
+                const planNames = Object.keys(allPlans);
+                if (planNames.length > 0) {
+                    const firstPlan = planNames[0];
+                    document.getElementById('plan-selector').value = firstPlan;
+                    currentPlan = allPlans[firstPlan];
+                    renderPlanTable();
+                }
+                alert("Trainingspläne erfolgreich geladen!");
             } catch (err) {
-                alert("Fehler bei der Excel-Verarbeitung: " + err.message);
-                return null;
+                alert("Verarbeitungsfehler: Bitte überprüfe das Format deiner Excel-Datei. Fehlermeldung: " + err.message);
             }
         }
 
-        // Lokaler manueller Import (völlig isoliert!)
-        function handleLocalExcelImport(e) {
-            const file = e.target.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                const loadedPlans = processExcelData(event.target.result);
-                if (loadedPlans && Object.keys(loadedPlans).length > 0) {
-                    allPlans = { ...allPlans, ...loadedPlans };
-                    saveToStorage();
-                    updatePlanSelector();
-                    const lastPlanName = Object.keys(loadedPlans).pop();
-                    if (lastPlanName) {
-                        document.getElementById('plan-selector').value = lastPlanName;
-                        currentPlan = allPlans[lastPlanName];
-                    }
-                    renderPlanTable();
-                    alert("Pläne erfolgreich importiert!");
-                }
-            };
-            reader.readAsArrayBuffer(file);
-        }
-
-        // Automatischer GitHub-Import (völlig isoliert!)
+        // Holt die Excel-Datei direkt von GitHub
         function loadExcelFromGithub() {
             const btn = document.getElementById('btn-load-github');
             btn.textContent = "⌛ Lädt...";
@@ -441,27 +431,25 @@
                     return response.arrayBuffer();
                 })
                 .then(arrayBuffer => {
-                    const loadedPlans = processExcelData(arrayBuffer);
-                    if (loadedPlans && Object.keys(loadedPlans).length > 0) {
-                        allPlans = { ...allPlans, ...loadedPlans };
-                        saveToStorage();
-                        updatePlanSelector();
-                        const lastPlanName = Object.keys(loadedPlans).pop();
-                        if (lastPlanName) {
-                            document.getElementById('plan-selector').value = lastPlanName;
-                            currentPlan = allPlans[lastPlanName];
-                        }
-                        renderPlanTable();
-                        alert("Pläne erfolgreich von GitHub importiert!");
-                    }
+                    importExcelData(arrayBuffer);
+                    btn.textContent = "🌐 Vorlage laden";
+                    btn.disabled = false;
                 })
                 .catch(err => {
                     alert("Import von GitHub fehlgeschlagen: " + err.message + "\n\nHinweis: Nutze den 'Eigene Excel'-Button als Alternative.");
-                })
-                .finally(() => {
                     btn.textContent = "🌐 Vorlage laden";
                     btn.disabled = false;
                 });
+        }
+
+        function handleExcelImport(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                importExcelData(event.target.result);
+            };
+            reader.readAsArrayBuffer(file);
         }
 
         function deleteCurrentPlan() {
@@ -554,7 +542,6 @@
             activeInterval = setInterval(timerTick, 1000);
         }
 
-        // Exakte Taktung für den Countdown-Sound
         function timerTick() {
             if (timerState.isPaused) return;
 
