@@ -18,8 +18,7 @@
             --red: #e84118;
             --orange: #fbc531;
             --blue: #00a8ff;
-            /* Extra dicker Sicherheitsabstand für die Handy-Leiste unten */
-            --safe-area-bottom: env(safe-area-inset-bottom, 30px);
+            --safe-area-bottom: env(safe-area-inset-bottom, 35px);
         }
 
         body, html {
@@ -129,10 +128,9 @@
             top: 0;
         }
 
-        /* KORREKTUR: Hebt die Leiste mit "TRAINING STARTEN" massiv an, damit sie auf Handys nie verdeckt wird */
         footer {
             padding: 15px;
-            padding-bottom: calc(55px + var(--safe-area-bottom)) !important; /* Sehr dicker Abstand nach unten! */
+            padding-bottom: calc(55px + var(--safe-area-bottom)) !important;
             background-color: var(--panel-dark);
             flex-shrink: 0;
             display: flex;
@@ -169,7 +167,6 @@
             max-width: 500px;
             height: 100%;
             padding: 20px;
-            /* Schiebt die Buttons im aktiven Training ebenfalls weit über die Handyleiste */
             padding-bottom: calc(60px + var(--safe-area-bottom)) !important;
         }
 
@@ -248,7 +245,6 @@
                 <option value="">-- Pläne laden... --</option>
             </select>
             <div class="header-buttons">
-                <!-- Der blaue Button zum automatischen Laden von GitHub -->
                 <button id="btn-load-github" class="btn btn-blue">🌐 Vorlage laden</button>
                 <label class="btn btn-orange" for="excel-input">📥 Excel Laden</label>
                 <input type="file" id="excel-input" accept=".xlsx" style="display:none;">
@@ -308,10 +304,10 @@
         let allPlans = {};
         let currentPlan = null;
         let activeInterval = null;
-        let boxingBell = null; // Wird erst bei Klick auf Start initialisiert
+        let boxingBell = null;
         let timerState = { stepIndex: 0, timeLeft: 0, totalRemaining: 0, isPaused: false };
 
-        // DIRECT-DOWNLOAD: Ruft deine Datei direkt von deinem GitHub-Kanal ab (ohne CORS-Sperren)
+        // DIRECT-LINK: Achtung, Groß- und Kleinschreibung MUSS exakt wie in GitHub sein!
         const githubExcelUrl = 'https://raw.githubusercontent.com/Michkern1AtDachsweg/trainingsplaner/main/Trainingsplan.xlsx';
 
         window.addEventListener('load', () => {
@@ -347,7 +343,7 @@
         }
 
         // Importiert und liest die Excel-Daten fehlerfrei aus
-        function importExcelData(arrayBuffer) {
+        function importExcelData(arrayBuffer, isFromGithub = false) {
             try {
                 const data = new Uint8Array(arrayBuffer);
                 const workbook = XLSX.read(data, { type: 'array' });
@@ -404,7 +400,7 @@
                 }
                 alert("Trainingspläne erfolgreich geladen!");
             } catch (err) {
-                alert("Verarbeitungsfehler: Bitte überprüfe das Format deiner Excel-Datei.");
+                alert("Verarbeitungsfehler: Bitte überprüfe das Format deiner Excel-Datei. Fehlermeldung: " + err.message);
             }
         }
 
@@ -416,16 +412,18 @@
 
             fetch(githubExcelUrl)
                 .then(response => {
-                    if (!response.ok) throw new Error("GitHub-Verbindungsfehler. Status: " + response.status);
+                    if (!response.ok) {
+                        throw new Error("GitHub-Verbindung fehlgeschlagen (Status: " + response.status + "). Stelle sicher, dass die Datei 'Trainingsplan.xlsx' im Hauptordner deines GitHubs liegt und der Name exakt übereinstimmt.");
+                    }
                     return response.arrayBuffer();
                 })
                 .then(arrayBuffer => {
-                    importExcelData(arrayBuffer);
+                    importExcelData(arrayBuffer, true);
                     btn.textContent = "🌐 Vorlage laden";
                     btn.disabled = false;
                 })
                 .catch(err => {
-                    alert("Download fehlgeschlagen: " + err.message + "\nBitte stelle sicher, dass 'Trainingsplan.xlsx' im Hauptordner deines GitHubs liegt.");
+                    alert("Download fehlgeschlagen:\n" + err.message);
                     btn.textContent = "🌐 Vorlage laden";
                     btn.disabled = false;
                 });
@@ -436,7 +434,7 @@
             if (!file) return;
             const reader = new FileReader();
             reader.onload = (event) => {
-                importExcelData(event.target.result);
+                importExcelData(event.target.result, false);
             };
             reader.readAsArrayBuffer(file);
         }
