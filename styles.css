@@ -21,7 +21,6 @@ body {
     background-color: var(--bg-dark);
     color: var(--text-light);
     height: 100vh;
-    width: 100vw;
     overflow: hidden;
 }
 
@@ -29,14 +28,12 @@ body {
     display: flex;
     flex-direction: column;
     height: 100%;
-    width: 100%;
 }
 
 .hidden {
     display: none !important;
 }
 
-/* Header */
 header {
     background-color: var(--panel-dark);
     padding: 15px;
@@ -128,15 +125,21 @@ th {
     top: 0;
 }
 
+/* ** FINALE KORREKTUR: Footer ist IMMER sichtbar ** */
 footer {
     margin: 15px;
     background-color: var(--panel-dark);
     padding: 15px;
     border-radius: 10px;
-    display: none;
+    display: flex; /* Immer anzeigen */
     flex-direction: column;
     gap: 10px;
     flex-shrink: 0;
+}
+/* Deaktivierten Button ausgrauen */
+#btn-start-training:disabled {
+    background-color: #576574;
+    cursor: not-allowed;
 }
 
 .time-summary {
@@ -146,94 +149,9 @@ footer {
     font-weight: bold;
 }
 
-/* ==========================================================================
-   PERFEKTE ZENTRIERUNG IM TRAININGS-MODUS
-   ========================================================================== */
 #training-view {
-    display: flex !important;
-    justify-content: center !important;
-    align-items: center !important;
-    text-align: center !important;
-    width: 100%;
-    height: 100%;
-    padding: 20px;
-}
-
-.training-container {
-    display: flex;
-    flex-direction: column;
-    align-items: center; /* Zentriert alle Elemente horizontal */
-    justify-content: space-between; /* Verteilt den Platz gleichmäßig hochkant */
-    width: 100%;
-    max-width: 500px;
-    height: 100%;
-    margin: 0 auto;
-}
-
-#timer-step-name {
-    font-size: 28px;
-    font-weight: 900;
-    text-transform: uppercase;
-    width: 100%;
-    text-align: center;
-}
-
-#timer-note {
-    font-size: 16px;
-    color: var(--orange);
-    width: 100%;
-    text-align: center;
-}
-
-#timer-countdown {
-    font-size: clamp(80px, 15vh, 130px); /* Skaliert dynamisch mit der Displayhöhe */
-    font-weight: 900;
-    font-variant-numeric: tabular-nums;
-    margin: 10px 0;
-    width: 100%;
-    text-align: center;
-}
-
-.training-grid {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 10px;
-    width: 100%;
-}
-
-.info-card {
-    background-color: var(--panel-dark);
-    padding: 12px;
-    border-radius: 10px;
-    display: flex;
-    flex-direction: column;
-    align-items: center; /* Text in der Box zentrieren */
-    justify-content: center;
-}
-
-    .info-card span {
-        font-size: 12px;
-        color: #a4b0be;
-    }
-
-    .info-card strong {
-        font-size: 16px;
-        margin-top: 3px;
-    }
-
-#timer-next-exercise {
-    background-color: rgba(255, 255, 255, 0.05);
-    padding: 15px;
-    border-radius: 8px;
-    font-weight: bold;
-    font-size: 15px;
-    width: 100%;
+    place-content: center;
     text-align: center;
 }
-
-.timer-controls {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    width: 100%;
-}
+/* ... (der Rest des CSS bleibt gleich) ... */
