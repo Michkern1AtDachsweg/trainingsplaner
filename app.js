@@ -4,6 +4,14 @@ let currentPlan = null;
 let activeInterval = null;
 const boxingBell = new Audio('boxing-bell.mp3');
 
+// Timer-Statusobjekt
+let timerState = {
+    stepIndex: 0,
+    timeLeft: 0,
+    totalRemaining: 0,
+    isPaused: false
+};
+
 // Event-Listener beim Laden der Seite
 window.addEventListener('load', () => {
     const saved = localStorage.getItem('trainingsplaene');
@@ -31,6 +39,11 @@ function initEventListeners() {
         }
     });
     document.getElementById('btn-start-training').addEventListener('click', startTraining);
+
+    // Event-Listener für Timer-Steuerung
+    document.getElementById('btn-pause').addEventListener('click', togglePause);
+    document.getElementById('btn-skip').addEventListener('click', skipStep);
+    document.getElementById('btn-stop').addEventListener('click', quitTraining);
 }
 
 function handleExcelImport(e) {
@@ -48,17 +61,9 @@ function handleExcelImport(e) {
 
             const newPlan = { name: sheetName, steps: [] };
 
-            // **FINALE KORREKTUR: Robuste Schleife, die leere Zeilen ignoriert**
             for (let i = 0; i < jsonData.length; i++) {
                 const row = jsonData[i];
-
-                // Überspringe, wenn die Zeile leer ist oder in Spalte A nichts steht
-                if (!row || row.length < 1 || !row[0]) {
-                    continue;
-                }
-
-                // Überspringe die Header-Zeile
-                if (row[0].toString().toLowerCase().includes('zeit')) {
+                if (!row || row.length < 1 || !row[0] || row[0].toString().toLowerCase().includes('zeit')) {
                     continue;
                 }
 
@@ -73,14 +78,11 @@ function handleExcelImport(e) {
                     newPlan.steps.push({ name: stepName, duration: workMin * 60, isPause: false, note: note });
 
                     if (pauseMin > 0) {
-                        const pauseNote = (r < repeats)
-                            ? `Nächste Übung: ${baseName} (Runde ${r + 1}/${repeats})`
-                            : "Block beendet. Nächste Übung vorbereiten...";
+                        const pauseNote = (r < repeats) ? `Nächste Übung: ${baseName} (Runde ${r + 1}/${repeats})` : "Block beendet. Nächste Übung vorbereiten...";
                         newPlan.steps.push({ name: "Pause", duration: pauseMin * 60, isPause: true, note: pauseNote });
                     }
                 }
             }
-
             if (newPlan.steps.length > 0) {
                 allPlans[sheetName] = newPlan;
             }
@@ -88,17 +90,16 @@ function handleExcelImport(e) {
 
         saveToStorage();
         updatePlanSelector();
-        // Wähle den zuletzt importierten Plan aus
         const lastPlanName = workbook.SheetNames[workbook.SheetNames.length - 1];
         planSelector.value = lastPlanName;
         currentPlan = allPlans[lastPlanName];
         renderPlanTable();
-        alert("Excel-Datei erfolgreich importiert!");
     };
     reader.readAsArrayBuffer(file);
 }
 
 function updatePlanSelector() {
+    const planSelector = document.getElementById('plan-selector');
     planSelector.innerHTML = '<option value="">-- Wähle einen Plan --</option>';
     Object.keys(allPlans).forEach(name => {
         const option = document.createElement('option');
@@ -114,20 +115,18 @@ function renderPlanTable() {
     tableBody.innerHTML = "";
 
     if (!currentPlan || currentPlan.steps.length === 0) {
-        lblTotalTime.textContent = "Gesamtdauer: 00:00";
-        lblEndTime.textContent = "Endzeit: --:-- Uhr";
-        footer.style.display = 'none'; // Footer ausblenden, wenn kein Plan da ist
+        document.getElementById('lbl-total-time').textContent = "Gesamtdauer: 00:00";
+        document.getElementById('lbl-end-time').textContent = "Endzeit: --:-- Uhr";
+        footer.style.display = 'none';
         return;
     }
 
-    footer.style.display = 'flex'; // Footer einblenden
+    footer.style.display = 'flex';
 
-    let totalSeconds = 0;
+    let totalSeconds = currentPlan.steps.reduce((acc, step) => acc + step.duration, 0);
     currentPlan.steps.forEach(step => {
-        totalSeconds += step.duration;
         const tr = document.createElement('tr');
         if (step.isPause) tr.style.backgroundColor = "rgba(41, 128, 185, 0.15)";
-
         tr.innerHTML = `
             <td>${step.name}</td>
             <td>${formatTime(step.duration)}</td>
@@ -137,15 +136,15 @@ function renderPlanTable() {
         tableBody.appendChild(tr);
     });
 
-    lblTotalTime.textContent = `Gesamtdauer: ${formatTime(totalSeconds)}`;
+    document.getElementById('lbl-total-time').textContent = `Gesamtdauer: ${formatTime(totalSeconds)}`;
     const end = new Date(Date.now() + totalSeconds * 1000);
-    lblEndTime.textContent = `Endzeit: ${end.getHours().toString().padStart(2, '0')}:${end.getMinutes().toString().padStart(2, '0')} Uhr`;
+    document.getElementById('lbl-end-time').textContent = `Endzeit: ${end.getHours().toString().padStart(2, '0')}:${end.getMinutes().toString().padStart(2, '0')} Uhr`;
 }
 
 function formatTime(seconds) {
     if (isNaN(seconds) || seconds < 0) seconds = 0;
     const m = Math.floor(seconds / 60).toString().padStart(2, '0');
-    const s = (seconds % 60).toString().padStart(2, '0');
+    const s = Math.round(seconds % 60).toString().padStart(2, '0');
     return `${m}:${s}`;
 }
 
@@ -153,6 +152,111 @@ function saveToStorage() {
     localStorage.setItem('trainingsplaene', JSON.stringify(allPlans));
 }
 
+// --- INTERVALLTIMER ENGINE ---
+
 function startTraining() {
-    // ... (Der Code für den Trainings-Modus bleibt unverändert)
+    if (!currentPlan || currentPlan.steps.length === 0) return;
+
+    document.getElementById('main-view').classList.add('hidden');
+    document.getElementById('training-view').classList.remove('hidden');
+
+    timerState.stepIndex = 0;
+    timerState.isPaused = false;
+    timerState.totalRemaining = currentPlan.steps.reduce((acc, s) => acc + s.duration, 0);
+
+    playStartBellSequence();
+    setTimeout(runStep, 1500); // Startverzögerung für den Gong
+}
+
+function playStartBellSequence() {
+    boxingBell.play();
+    setTimeout(() => boxingBell.play(), 500);
+    setTimeout(() => boxingBell.play(), 1000);
+}
+
+function runStep() {
+    if (timerState.stepIndex >= currentPlan.steps.length) {
+        clearInterval(activeInterval);
+        boxingBell.play();
+        alert("Training beendet! Starke Leistung!");
+        quitTraining();
+        return;
+    }
+
+    const currentStep = currentPlan.steps[timerState.stepIndex];
+    timerState.timeLeft = currentStep.duration;
+
+    document.getElementById('timer-step-name').textContent = currentStep.name.toUpperCase();
+    document.getElementById('timer-note').textContent = currentStep.note || "";
+    document.getElementById('training-view').style.backgroundColor = currentStep.isPause ? "#2980b9" : "#c0392b";
+
+    updateNextExercise();
+    boxingBell.play();
+
+    clearInterval(activeInterval);
+    activeInterval = setInterval(timerTick, 1000);
+}
+
+function timerTick() {
+    if (timerState.isPaused) return;
+
+    if (timerState.timeLeft <= 4 && timerState.timeLeft > 1) {
+        playSystemBeep(1800, 80);
+    }
+
+    if (timerState.timeLeft <= 0) {
+        timerState.stepIndex++;
+        runStep();
+    } else {
+        timerState.timeLeft--;
+        timerState.totalRemaining--;
+        updateTimerDisplay();
+    }
+}
+
+function playSystemBeep(freq, duration) {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = "sine";
+    osc.frequency.value = freq;
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    setTimeout(() => { osc.stop(); ctx.close(); }, duration);
+}
+
+function updateTimerDisplay() {
+    document.getElementById('timer-countdown').textContent = formatTime(timerState.timeLeft);
+    document.getElementById('timer-total-remaining').textContent = formatTime(timerState.totalRemaining);
+    document.getElementById('timer-rounds').textContent = `${timerState.stepIndex + 1} / ${currentPlan.steps.length}`;
+    const end = new Date(Date.now() + timerState.totalRemaining * 1000);
+    document.getElementById('timer-end-time').textContent = `${end.getHours().toString().padStart(2, '0')}:${end.getMinutes().toString().padStart(2, '0')}`;
+}
+
+function updateNextExercise() {
+    const next = currentPlan.steps.slice(timerState.stepIndex + 1).find(s => !s.isPause);
+    document.getElementById('timer-next-exercise').textContent = next ? `NÄCHSTE ÜBUNG: ${next.name}` : "LETZTE RUNDE! GIB ALLES!";
+}
+
+function togglePause() {
+    timerState.isPaused = !timerState.isPaused;
+    const btn = document.getElementById('btn-pause');
+    btn.textContent = timerState.isPaused ? "▶️ FORTSETZEN" : "⏸️ PAUSE";
+    document.getElementById('training-view').style.backgroundColor = timerState.isPaused ? "#7f8c8d" : (currentPlan.steps[timerState.stepIndex].isPause ? "#2980b9" : "#c0392b");
+}
+
+function skipStep() {
+    timerState.totalRemaining -= timerState.timeLeft;
+    timerState.stepIndex++;
+    runStep();
+}
+
+function quitTraining() {
+    if (confirm("Möchtest du das Training wirklich abbrechen?")) {
+        clearInterval(activeInterval);
+        document.getElementById('training-view').classList.add('hidden');
+        document.getElementById('main-view').classList.remove('hidden');
+        renderPlanTable();
+    }
 }
