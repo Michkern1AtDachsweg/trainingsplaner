@@ -3,39 +3,34 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Box- & Intervalltimer Pro</title>
+    <title>Trainingsplaner Pro</title>
+    <link rel="manifest" href="manifest.json">
     <!-- Excel-Parser Bibliothek -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
-    <!-- Direktes CSS im HTML-Dokument verhindert jegliche Browser-Ladefehler! -->
+    <!-- CSS direkt eingebettet, um Cache-Probleme zu 100% zu vermeiden -->
     <style>
         :root {
             --bg-dark: #1e272e;
             --panel-dark: #2f3640;
             --text-light: #f5f6fa;
-            --text-muted: #9c88ff;
             --green: #4cd137;
             --red: #e84118;
             --orange: #fbc531;
             --blue: #00a8ff;
-            /* Sicherheitsabstand für die Handy-Navigationsleiste */
-            --safe-area-bottom: env(safe-area-inset-bottom, 30px);
+            /* Sicherheitsabstand für die Navigationsleiste auf iOS und Android */
+            --safe-area-bottom: env(safe-area-inset-bottom, 20px);
         }
 
-        * {
-            box-sizing: border-box;
+        body, html {
+            height: 100%;
+            width: 100%;
             margin: 0;
             padding: 0;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-            -webkit-tap-highlight-color: transparent;
-        }
-
-        body {
+            overflow: hidden;
             background-color: var(--bg-dark);
             color: var(--text-light);
-            height: 100vh;
-            width: 100vw;
-            overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
         }
 
         .view {
@@ -50,49 +45,32 @@
         }
 
         header {
-            background-color: var(--panel-dark);
             padding: 15px;
-            border-radius: 10px;
-            margin: 15px 15px 0 15px;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
+            background-color: var(--panel-dark);
             flex-shrink: 0;
         }
 
-        select {
+        select, .btn {
             width: 100%;
             padding: 12px;
-            background-color: var(--bg-dark);
-            color: var(--text-light);
-            border: 1px solid var(--text-muted);
             border-radius: 8px;
             font-size: 16px;
+            border: 1px solid #576574;
+            background-color: var(--bg-dark);
+            color: var(--text-light);
         }
 
         .header-buttons {
             display: flex;
             gap: 10px;
+            margin-top: 10px;
         }
 
         .btn {
-            padding: 12px 20px;
             border: none;
-            border-radius: 8px;
-            color: white;
             font-weight: bold;
-            font-size: 14px;
             cursor: pointer;
-            text-align: center;
             flex: 1;
-        }
-
-        .btn-green {
-            background-color: var(--green);
-        }
-
-        .btn-red {
-            background-color: var(--red);
         }
 
         .btn-orange {
@@ -100,33 +78,23 @@
             color: #1e272e;
         }
 
-        .btn-blue {
-            background-color: var(--blue);
+        .btn-red {
+            background-color: var(--red);
         }
 
-        .btn-large {
-            font-size: 18px;
-            padding: 16px;
+        .btn-green {
+            background-color: var(--green);
         }
 
         #btn-start-training:disabled {
             background-color: #576574;
             cursor: not-allowed;
-            opacity: 0.6;
         }
 
         main {
             flex-grow: 1;
-            overflow: hidden;
-            padding: 15px;
-            display: flex;
-        }
-
-        .table-container {
-            width: 100%;
             overflow-y: auto;
-            background-color: var(--panel-dark);
-            border-radius: 10px;
+            padding: 15px;
         }
 
         table {
@@ -146,194 +114,324 @@
             top: 0;
         }
 
-        /* Startseiten-Footer mit 50px zusätzlichem Sicherheitsabstand nach oben geschoben */
         footer {
-            margin: 15px 15px calc(15px + var(--safe-area-bottom)) 15px;
-            background-color: var(--panel-dark);
             padding: 15px;
-            border-radius: 10px;
+            padding-bottom: calc(15px + var(--safe-area-bottom)); /* Sicherheitsabstand */
+            background-color: var(--panel-dark);
+            flex-shrink: 0;
             display: flex;
             flex-direction: column;
             gap: 10px;
-            flex-shrink: 0;
         }
 
         .time-summary {
             display: flex;
             justify-content: space-between;
-            font-size: 16px;
-            font-weight: bold;
-            margin-bottom: 5px;
         }
 
-        /* ==========================================
-           ZENTRIERTER TRAININGS-MODUS
-           ========================================== */
         #training-view {
-            display: flex !important;
-            justify-content: center !important;
-            align-items: center !important;
-            text-align: center !important;
+            display: grid;
+            place-content: center;
+            text-align: center;
             padding: 20px;
-            /* Drückt das gesamte Trainingsfenster über die Leiste */
-            padding-bottom: calc(20px + var(--safe-area-bottom)) !important;
+            padding-bottom: calc(20px + var(--safe-area-bottom)); /* Sicherheitsabstand */
         }
 
         .training-container {
             display: flex;
             flex-direction: column;
-            align-items: center;
-            justify-content: space-between;
+            gap: 20px;
             width: 100%;
             max-width: 500px;
-            height: 100%;
-            margin: 0 auto;
         }
 
         #timer-step-name {
-            font-size: 32px;
+            font-size: clamp(24px, 5vw, 32px);
             font-weight: 900;
-            text-transform: uppercase;
-            width: 100%;
-            text-align: center;
         }
 
         #timer-note {
             font-size: 16px;
             color: var(--orange);
-            width: 100%;
-            text-align: center;
         }
 
         #timer-countdown {
-            font-size: clamp(80px, 15vh, 130px);
+            font-size: clamp(80px, 25vw, 150px);
             font-weight: 900;
             font-variant-numeric: tabular-nums;
-            margin: 10px 0;
-            width: 100%;
-            text-align: center;
         }
 
         .training-grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
             gap: 10px;
-            width: 100%;
         }
 
         .info-card {
-            background-color: var(--panel-dark);
-            padding: 12px;
-            border-radius: 10px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
+            background-color: #1e272e;
+            padding: 10px;
+            border-radius: 8px;
         }
 
-            .info-card span {
-                font-size: 12px;
-                color: #a4b0be;
-            }
-
-            .info-card strong {
-                font-size: 16px;
-                margin-top: 3px;
-            }
-
         #timer-next-exercise {
-            background-color: rgba(255, 255, 255, 0.05);
-            padding: 15px;
+            background-color: rgba(0,0,0,0.2);
+            padding: 10px;
             border-radius: 8px;
             font-weight: bold;
-            font-size: 15px;
-            width: 100%;
-            text-align: center;
         }
 
         .timer-controls {
             display: flex;
-            flex-direction: column;
             gap: 10px;
-            width: 100%;
         }
     </style>
 </head>
 <body>
-
-    <!-- HAUPTFENSTER: Plan-Verwaltung -->
     <div id="main-view" class="view">
         <header>
-            <select id="plan-selector">
-                <option value="">-- Wähle einen Plan --</option>
-            </select>
+            <select id="plan-selector"><option value="">-- Pläne laden... --</option></select>
             <div class="header-buttons">
                 <label class="btn btn-orange" for="excel-input">📥 Excel Laden</label>
-                <input type="file" id="excel-input" accept=".xlsx" style="display: none;">
+                <input type="file" id="excel-input" accept=".xlsx" style="display:none;">
                 <button id="btn-delete-plan" class="btn btn-red">🗑️ Löschen</button>
             </div>
         </header>
-
         <main>
-            <div class="table-container">
-                <table id="plan-table">
-                    <thead>
-                        <tr>
-                            <th>Phase / Übung</th>
-                            <th>Dauer</th>
-                            <th>Pause</th>
-                            <th>Bemerkung</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <!-- Dynamisch befüllt -->
-                    </tbody>
-                </table>
-            </div>
+            <table id="plan-table">
+                <thead><tr><th>Phase</th><th>Dauer</th><th>Pause?</th><th>Bemerkung</th></tr></thead>
+                <tbody></tbody>
+            </table>
         </main>
-
         <footer>
             <div class="time-summary">
                 <div id="lbl-total-time">Gesamtdauer: 00:00</div>
-                <div id="lbl-end-time">Endzeit: --:-- Uhr</div>
+                <div id="lbl-end-time">Endzeit: --:--</div>
             </div>
             <button id="btn-start-training" class="btn btn-green btn-large">⚡ TRAINING STARTEN</button>
         </footer>
     </div>
-
-    <!-- TRAININGS-MODUS (Vollbild-Timer) -->
     <div id="training-view" class="view hidden">
         <div class="training-container">
             <h1 id="timer-step-name">LAUFEN</h1>
             <p id="timer-note">Aufwärmen</p>
-
             <div id="timer-countdown">10:00</div>
-
             <div class="training-grid">
-                <div class="info-card">
-                    <span>⏳ Restzeit</span>
-                    <strong id="timer-total-remaining">00:00</strong>
-                </div>
-                <div class="info-card">
-                    <span>🔄 Phasen</span>
-                    <strong id="timer-rounds">0 / 0</strong>
-                </div>
-                <div class="info-card">
-                    <span>🏁 Endzeit</span>
-                    <strong id="timer-end-time">--:--</strong>
-                </div>
+                <div class="info-card"><span>⏳ Restzeit</span><strong id="timer-total-remaining">00:00</strong></div>
+                <div class="info-card"><span>🔄 Phasen</span><strong id="timer-rounds">0/0</strong></div>
+                <div class="info-card"><span>🏁 Ende</span><strong id="timer-end-time">--:--</strong></div>
             </div>
-
             <div id="timer-next-exercise">NÄCHSTE ÜBUNG: ...</div>
-
             <div class="timer-controls">
-                <button id="btn-pause" class="btn btn-orange btn-large">⏸️ PAUSE</button>
-                <button id="btn-skip" class="btn btn-blue btn-large">⏭️ ÜBERSPRINGEN</button>
-                <button id="btn-stop" class="btn btn-red btn-large">⏹️ BEENDEN</button>
+                <button id="btn-pause" class="btn btn-orange">⏸️ PAUSE</button>
+                <button id="btn-skip" class="btn btn-blue">⏭️ SKIP</button>
+                <button id="btn-stop" class="btn btn-red">⏹️ BEENDEN</button>
             </div>
         </div>
     </div>
+    <script>
+        let allPlans = {};
+        let currentPlan = null;
+        let activeInterval = null;
+        let boxingBell = null;
+        let timerState = { stepIndex: 0, timeLeft: 0, totalRemaining: 0, isPaused: false };
 
-    <script src="app.js"></script>
+        window.addEventListener('load', () => {
+            try {
+                const saved = localStorage.getItem('trainingsplaene');
+                if (saved) {
+                    allPlans = JSON.parse(saved);
+                    updatePlanSelector();
+                    const firstPlanName = Object.keys(allPlans)[0];
+                    if (firstPlanName) {
+                        document.getElementById('plan-selector').value = firstPlanName;
+                        currentPlan = allPlans[firstPlanName];
+                    }
+                }
+            } catch (e) { console.error("Fehler beim Laden:", e); }
+            initEventListeners();
+            renderPlanTable();
+        });
+
+        function initEventListeners() {
+            document.getElementById('excel-input').addEventListener('change', handleExcelImport);
+            document.getElementById('plan-selector').addEventListener('change', (e) => {
+                currentPlan = allPlans[e.target.value] || null;
+                renderPlanTable();
+            });
+            document.getElementById('btn-delete-plan').addEventListener('click', deleteCurrentPlan);
+            document.getElementById('btn-start-training').addEventListener('click', startTraining);
+            document.getElementById('btn-pause').addEventListener('click', togglePause);
+            document.getElementById('btn-skip').addEventListener('click', skipStep);
+            document.getElementById('btn-stop').addEventListener('click', () => quitTraining(false));
+        }
+
+        function handleExcelImport(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                try {
+                    const data = new Uint8Array(event.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    workbook.SheetNames.forEach(sheetName => {
+                        const ws = workbook.Sheets[sheetName];
+                        const jsonData = XLSX.utils.sheet_to_json(ws, { header: 1 });
+                        const newPlan = { name: sheetName, steps: [] };
+                        let headerFound = false;
+                        for (const row of jsonData) {
+                            if (!row || !row[0]) continue;
+                            if (!headerFound && row[0].toString().toLowerCase().includes('zeit')) { headerFound = true; continue; }
+                            if (!headerFound) continue;
+                            const [baseName, workMin, repeats, pauseMin, , note] = row;
+                            const parsedWorkMin = parseFloat(String(workMin).replace(',', '.')) || 0;
+                            const parsedRepeats = parseInt(repeats) || 1;
+                            const parsedPauseMin = parseFloat(String(pauseMin).replace(',', '.')) || 0;
+                            for (let r = 1; r <= parsedRepeats; r++) {
+                                newPlan.steps.push({ name: `${baseName}${parsedRepeats > 1 ? ` (Runde ${r}/${parsedRepeats})` : ''}`, duration: parsedWorkMin * 60, isPause: false, note: note || "" });
+                                if (parsedPauseMin > 0) newPlan.steps.push({ name: "Pause", duration: parsedPauseMin * 60, isPause: true, note: `Nächste Übung: ${baseName}` });
+                            }
+                        }
+                        if (newPlan.steps.length > 0) allPlans[sheetName] = newPlan;
+                    });
+                    saveToStorage();
+                    updatePlanSelector();
+                    const lastPlanName = workbook.SheetNames[workbook.SheetNames.length - 1];
+                    if (allPlans[lastPlanName]) {
+                        document.getElementById('plan-selector').value = lastPlanName;
+                        currentPlan = allPlans[lastPlanName];
+                        renderPlanTable();
+                    }
+                } catch (err) { alert("Fehler beim Lesen der Excel-Datei."); }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function deleteCurrentPlan() {
+            if (!currentPlan) return;
+            if (confirm(`Soll der Plan "${currentPlan.name}" gelöscht werden?`)) {
+                delete allPlans[currentPlan.name];
+                currentPlan = null;
+                document.getElementById('plan-selector').value = "";
+                saveToStorage();
+                updatePlanSelector();
+                renderPlanTable();
+            }
+        }
+
+        function updatePlanSelector() {
+            const selector = document.getElementById('plan-selector');
+            selector.innerHTML = '<option value="">-- Wähle einen Plan --</option>';
+            Object.keys(allPlans).forEach(name => selector.add(new Option(name, name)));
+            if (currentPlan) selector.value = currentPlan.name;
+        }
+
+        function renderPlanTable() {
+            const tableBody = document.getElementById('plan-table').querySelector('tbody');
+            const startButton = document.getElementById('btn-start-training');
+            tableBody.innerHTML = "";
+
+            if (!currentPlan || currentPlan.steps.length === 0) {
+                document.getElementById('lbl-total-time').textContent = "Gesamtdauer: 00:00";
+                document.getElementById('lbl-end-time').textContent = "Endzeit: --:--";
+                startButton.disabled = true;
+                return;
+            }
+
+            startButton.disabled = false;
+            let totalSeconds = currentPlan.steps.reduce((acc, step) => acc + step.duration, 0);
+            currentPlan.steps.forEach(step => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `<td>${step.name}</td><td>${formatTime(step.duration)}</td><td>${step.isPause ? "✔️" : "❌"}</td><td style="font-size:12px;color:#888;">${step.note}</td>`;
+                tableBody.appendChild(tr);
+            });
+            document.getElementById('lbl-total-time').textContent = `Gesamtdauer: ${formatTime(totalSeconds)}`;
+            const end = new Date(Date.now() + totalSeconds * 1000);
+            document.getElementById('lbl-end-time').textContent = `Endzeit: ${end.getHours().toString().padStart(2, '0')}:${end.getMinutes().toString().padStart(2, '0')}`;
+        }
+
+        function formatTime(seconds) {
+            const m = Math.floor(seconds / 60).toString().padStart(2, '0');
+            const s = Math.round(seconds % 60).toString().padStart(2, '0');
+            return `${m}:${s}`;
+        }
+
+        function saveToStorage() {
+            localStorage.setItem('trainingsplaene', JSON.stringify(allPlans));
+        }
+
+        function startTraining() {
+            if (!currentPlan || currentPlan.steps.length === 0) return;
+            if (!boxingBell) boxingBell = new Audio('boxing-bell.mp3');
+            document.getElementById('main-view').classList.add('hidden');
+            document.getElementById('training-view').classList.remove('hidden');
+            timerState = { stepIndex: 0, isPaused: false, totalRemaining: currentPlan.steps.reduce((acc, s) => acc + s.duration, 0) };
+            runStep();
+        }
+
+        function runStep() {
+            if (timerState.stepIndex >= currentPlan.steps.length) {
+                clearInterval(activeInterval);
+                boxingBell.play();
+                alert("Training beendet!");
+                quitTraining(true);
+                return;
+            }
+            const step = currentPlan.steps[timerState.stepIndex];
+            timerState.timeLeft = step.duration;
+            document.getElementById('timer-step-name').textContent = step.name.toUpperCase();
+            document.getElementById('timer-note').textContent = step.note || "";
+            document.getElementById('training-view').style.backgroundColor = step.isPause ? "#2980b9" : "#c0392b";
+            updateNextExercise();
+            updateTimerDisplay();
+            boxingBell.play();
+            clearInterval(activeInterval);
+            activeInterval = setInterval(timerTick, 1000);
+        }
+
+        function timerTick() {
+            if (timerState.isPaused) return;
+            if (timerState.timeLeft <= 1) {
+                timerState.stepIndex++;
+                runStep();
+            } else {
+                timerState.timeLeft--;
+                timerState.totalRemaining--;
+                updateTimerDisplay();
+            }
+        }
+
+        function updateTimerDisplay() {
+            document.getElementById('timer-countdown').textContent = formatTime(timerState.timeLeft);
+            document.getElementById('timer-total-remaining').textContent = formatTime(timerState.totalRemaining);
+            document.getElementById('timer-rounds').textContent = `${timerState.stepIndex + 1}/${currentPlan.steps.length}`;
+            const end = new Date(Date.now() + timerState.totalRemaining * 1000);
+            document.getElementById('timer-end-time').textContent = `${end.getHours().toString().padStart(2, '0')}:${end.getMinutes().toString().padStart(2, '0')}`;
+        }
+
+        function updateNextExercise() {
+            const next = currentPlan.steps.slice(timerState.stepIndex + 1).find(s => !s.isPause);
+            document.getElementById('timer-next-exercise').textContent = next ? `NÄCHSTE ÜBUNG: ${next.name}` : "LETZTE RUNDE! GIB ALLES!";
+        }
+
+        function togglePause() {
+            timerState.isPaused = !timerState.isPaused;
+            document.getElementById('btn-pause').textContent = timerState.isPaused ? "▶️ FORTSETZEN" : "⏸️ PAUSE";
+            document.getElementById('training-view').style.backgroundColor = timerState.isPaused ? "#7f8c8d" : (currentPlan.steps[timerState.stepIndex].isPause ? "#2980b9" : "#c0392b");
+        }
+
+        function skipStep() {
+            timerState.totalRemaining -= timerState.timeLeft;
+            timerState.stepIndex++;
+            runStep();
+        }
+
+        function quitTraining(force = false) {
+            if (force || confirm("Training abbrechen?")) {
+                clearInterval(activeInterval);
+                document.getElementById('training-view').classList.add('hidden');
+                document.getElementById('main-view').classList.remove('hidden');
+            }
+        }
+    </script>
 </body>
 </html>
