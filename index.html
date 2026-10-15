@@ -2,12 +2,262 @@
 <html lang="de">
 <head>
     <meta charset="UTF-8">
-    <!-- FINALE KORREKTUR: Erzwingt die Nutzung der "Safe Area" auf Smartphones -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Trainingsplaner Pro</title>
-    <link rel="stylesheet" href="styles.css">
-    <link rel="manifest" href="manifest.json">
+    <title>Box- & Intervalltimer Pro</title>
+    <!-- Excel-Parser Bibliothek -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+    <!-- Direktes CSS im HTML-Dokument verhindert jegliche Browser-Ladefehler! -->
+    <style>
+        :root {
+            --bg-dark: #1e272e;
+            --panel-dark: #2f3640;
+            --text-light: #f5f6fa;
+            --text-muted: #9c88ff;
+            --green: #4cd137;
+            --red: #e84118;
+            --orange: #fbc531;
+            --blue: #00a8ff;
+            /* Sicherheitsabstand für die Handy-Navigationsleiste */
+            --safe-area-bottom: env(safe-area-inset-bottom, 30px);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-light);
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden;
+        }
+
+        .view {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            width: 100%;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        header {
+            background-color: var(--panel-dark);
+            padding: 15px;
+            border-radius: 10px;
+            margin: 15px 15px 0 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            flex-shrink: 0;
+        }
+
+        select {
+            width: 100%;
+            padding: 12px;
+            background-color: var(--bg-dark);
+            color: var(--text-light);
+            border: 1px solid var(--text-muted);
+            border-radius: 8px;
+            font-size: 16px;
+        }
+
+        .header-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-weight: bold;
+            font-size: 14px;
+            cursor: pointer;
+            text-align: center;
+            flex: 1;
+        }
+
+        .btn-green {
+            background-color: var(--green);
+        }
+
+        .btn-red {
+            background-color: var(--red);
+        }
+
+        .btn-orange {
+            background-color: var(--orange);
+            color: #1e272e;
+        }
+
+        .btn-blue {
+            background-color: var(--blue);
+        }
+
+        .btn-large {
+            font-size: 18px;
+            padding: 16px;
+        }
+
+        #btn-start-training:disabled {
+            background-color: #576574;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+
+        main {
+            flex-grow: 1;
+            overflow: hidden;
+            padding: 15px;
+            display: flex;
+        }
+
+        .table-container {
+            width: 100%;
+            overflow-y: auto;
+            background-color: var(--panel-dark);
+            border-radius: 10px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #3f4756;
+        }
+
+        th {
+            background-color: #3f4756;
+            position: sticky;
+            top: 0;
+        }
+
+        /* Startseiten-Footer mit 50px zusätzlichem Sicherheitsabstand nach oben geschoben */
+        footer {
+            margin: 15px 15px calc(15px + var(--safe-area-bottom)) 15px;
+            background-color: var(--panel-dark);
+            padding: 15px;
+            border-radius: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            flex-shrink: 0;
+        }
+
+        .time-summary {
+            display: flex;
+            justify-content: space-between;
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        /* ==========================================
+           ZENTRIERTER TRAININGS-MODUS
+           ========================================== */
+        #training-view {
+            display: flex !important;
+            justify-content: center !important;
+            align-items: center !important;
+            text-align: center !important;
+            padding: 20px;
+            /* Drückt das gesamte Trainingsfenster über die Leiste */
+            padding-bottom: calc(20px + var(--safe-area-bottom)) !important;
+        }
+
+        .training-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-between;
+            width: 100%;
+            max-width: 500px;
+            height: 100%;
+            margin: 0 auto;
+        }
+
+        #timer-step-name {
+            font-size: 32px;
+            font-weight: 900;
+            text-transform: uppercase;
+            width: 100%;
+            text-align: center;
+        }
+
+        #timer-note {
+            font-size: 16px;
+            color: var(--orange);
+            width: 100%;
+            text-align: center;
+        }
+
+        #timer-countdown {
+            font-size: clamp(80px, 15vh, 130px);
+            font-weight: 900;
+            font-variant-numeric: tabular-nums;
+            margin: 10px 0;
+            width: 100%;
+            text-align: center;
+        }
+
+        .training-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            width: 100%;
+        }
+
+        .info-card {
+            background-color: var(--panel-dark);
+            padding: 12px;
+            border-radius: 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+            .info-card span {
+                font-size: 12px;
+                color: #a4b0be;
+            }
+
+            .info-card strong {
+                font-size: 16px;
+                margin-top: 3px;
+            }
+
+        #timer-next-exercise {
+            background-color: rgba(255, 255, 255, 0.05);
+            padding: 15px;
+            border-radius: 8px;
+            font-weight: bold;
+            font-size: 15px;
+            width: 100%;
+            text-align: center;
+        }
+
+        .timer-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            width: 100%;
+        }
+    </style>
 </head>
 <body>
 
@@ -35,7 +285,9 @@
                             <th>Bemerkung</th>
                         </tr>
                     </thead>
-                    <tbody></tbody>
+                    <tbody>
+                        <!-- Dynamisch befüllt -->
+                    </tbody>
                 </table>
             </div>
         </main>
@@ -54,13 +306,26 @@
         <div class="training-container">
             <h1 id="timer-step-name">LAUFEN</h1>
             <p id="timer-note">Aufwärmen</p>
+
             <div id="timer-countdown">10:00</div>
+
             <div class="training-grid">
-                <div class="info-card"><span>⏳ Restzeit</span><strong id="timer-total-remaining">00:00</strong></div>
-                <div class="info-card"><span>🔄 Phasen</span><strong id="timer-rounds">0 / 0</strong></div>
-                <div class="info-card"><span>🏁 Endzeit</span><strong id="timer-end-time">--:--</strong></div>
+                <div class="info-card">
+                    <span>⏳ Restzeit</span>
+                    <strong id="timer-total-remaining">00:00</strong>
+                </div>
+                <div class="info-card">
+                    <span>🔄 Phasen</span>
+                    <strong id="timer-rounds">0 / 0</strong>
+                </div>
+                <div class="info-card">
+                    <span>🏁 Endzeit</span>
+                    <strong id="timer-end-time">--:--</strong>
+                </div>
             </div>
+
             <div id="timer-next-exercise">NÄCHSTE ÜBUNG: ...</div>
+
             <div class="timer-controls">
                 <button id="btn-pause" class="btn btn-orange btn-large">⏸️ PAUSE</button>
                 <button id="btn-skip" class="btn btn-blue btn-large">⏭️ ÜBERSPRINGEN</button>
