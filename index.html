@@ -1,0 +1,89 @@
+﻿<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Box- & Intervalltimer Pro</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="manifest" href="manifest.json">
+    <!-- Excel-Parser Bibliothek -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+
+    <!-- HAUPTFENSTER: Plan-Verwaltung -->
+    <div id="main-view" class="view">
+        <header>
+            <select id="plan-selector">
+                <option value="">-- Kein Plan geladen --</option>
+            </select>
+            <div class="header-buttons">
+                <label class="btn btn-orange" for="excel-input">📥 Excel Laden</label>
+                <input type="file" id="excel-input" accept=".xlsx" style="display: none;">
+                <button id="btn-delete-plan" class="btn btn-red">🗑️ Löschen</button>
+            </div>
+        </header>
+
+        <main>
+            <div class="table-container">
+                <table id="plan-table">
+                    <thead>
+                        <tr>
+                            <th>Phase / Übung</th>
+                            <th>Dauer</th>
+                            <th>Pause</th>
+                            <th>Bemerkung</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Dynamisch befüllt -->
+                    </tbody>
+                </table>
+            </div>
+        </main>
+
+        <footer>
+            <div class="time-summary">
+                <div id="lbl-total-time">Gesamtdauer: 00:00</div>
+                <div id="lbl-end-time">Endzeit: --:-- Uhr</div>
+            </div>
+            <button id="btn-start-training" class="btn btn-green btn-large">⚡ TRAINING STARTEN</button>
+        </footer>
+    </div>
+
+    <!-- TRAININGS-MODUS (Vollbild-Timer) -->
+    <div id="training-view" class="view hidden">
+        <div class="training-container">
+            <h1 id="timer-step-name">LAUFEN</h1>
+            <p id="timer-note">Aufwärmen</p>
+
+            <div id="timer-countdown">10:00</div>
+
+            <div class="training-grid">
+                <div class="info-card">
+                    <span>⏳ Restzeit</span>
+                    <strong id="timer-total-remaining">00:00</strong>
+                </div>
+                <div class="info-card">
+                    <span>🔄 Phasen</span>
+                    <strong id="timer-rounds">0 / 0</strong>
+                </div>
+                <div class="info-card">
+                    <span>🏁 Endzeit</span>
+                    <strong id="timer-end-time">--:--</strong>
+                </div>
+            </div>
+
+            <div id="timer-next-exercise">NÄCHSTE ÜBUNG: ...</div>
+
+            <div class="timer-controls">
+                <button id="btn-pause" class="btn btn-orange btn-large">⏸️ PAUSE</button>
+                <button id="btn-skip" class="btn btn-blue btn-large">⏭️ ÜBERSPRINGEN</button>
+                <button id="btn-stop" class="btn btn-red btn-large">⏹️ BEENDEN</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

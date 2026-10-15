@@ -1,0 +1,16 @@
+{
+  "name": "Trainingsplaner Pro",
+  "short_name": "Trainingsplaner",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#1e272e",
+  "theme_color": "#2f3640",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/3011/3011244.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
