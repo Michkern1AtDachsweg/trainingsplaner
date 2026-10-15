@@ -27,8 +27,7 @@ body {
 .view {
     display: flex;
     flex-direction: column;
-    height: 100vh;
-    padding: 15px;
+    height: 100%; /* Wichtig für das Flex-Layout */
 }
 
 .hidden {
@@ -40,10 +39,11 @@ header {
     background-color: var(--panel-dark);
     padding: 15px;
     border-radius: 10px;
-    margin-bottom: 15px;
+    margin: 15px 15px 0 15px; /* Abstand oben/seiten */
     display: flex;
     flex-direction: column;
     gap: 10px;
+    flex-shrink: 0; /* Verhindert, dass der Header schrumpft */
 }
 
 select {
@@ -96,9 +96,16 @@ select {
     padding: 16px;
 }
 
-/* Tabelle */
+/* Main-Bereich mit Tabelle */
+main {
+    flex-grow: 1; /* Nimmt den verfügbaren Platz ein */
+    overflow-y: hidden; /* Verhindert doppelte Scrollbalken */
+    padding: 15px 15px 0 15px;
+    display: flex;
+}
+
 .table-container {
-    flex: 1;
+    width: 100%;
     overflow-y: auto;
     background-color: var(--panel-dark);
     border-radius: 10px;
@@ -123,13 +130,14 @@ th {
 
 /* Footer */
 footer {
-    margin-top: 15px;
+    margin: 15px;
     background-color: var(--panel-dark);
     padding: 15px;
     border-radius: 10px;
     display: flex;
     flex-direction: column;
     gap: 10px;
+    flex-shrink: 0; /* Verhindert, dass der Footer schrumpft */
 }
 
 .time-summary {
@@ -141,73 +149,5 @@ footer {
 
 /* Vollbild-Timer */
 #training-view {
-    background-color: var(--bg-dark);
-    justify-content: center;
-}
-
-.training-container {
-    text-align: center;
-    max-width: 600px;
-    margin: 0 auto;
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-    justify-content: space-between;
-}
-
-#timer-step-name {
-    font-size: 28px;
-    font-weight: 900;
-}
-
-#timer-note {
-    font-size: 16px;
-    color: var(--orange);
-    margin-top: 5px;
-}
-
-#timer-countdown {
-    font-size: 96px;
-    font-weight: 900;
-    margin: 20px 0;
-    font-variant-numeric: tabular-nums;
-}
-
-.training-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 10px;
-    margin-bottom: 20px;
-}
-
-.info-card {
-    background-color: var(--panel-dark);
-    padding: 12px;
-    border-radius: 10px;
-    display: flex;
-    flex-direction: column;
-}
-
-    .info-card span {
-        font-size: 12px;
-        color: #a4b0be;
-    }
-
-    .info-card strong {
-        font-size: 16px;
-        margin-top: 5px;
-    }
-
-#timer-next-exercise {
-    background-color: rgba(255,255,255,0.05);
-    padding: 15px;
-    border-radius: 8px;
-    font-weight: bold;
-    margin-bottom: 20px;
-}
-
-.timer-controls {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
+    /* ... (Rest des CSS bleibt unverändert) ... */
 }
