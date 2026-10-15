@@ -128,6 +128,7 @@
             top: 0;
         }
 
+        /* Drückt die Startleiste weit nach oben, schützt vor der Handyleiste */
         footer {
             padding: 15px;
             padding-bottom: calc(55px + var(--safe-area-bottom)) !important;
@@ -146,9 +147,7 @@
             font-weight: bold;
         }
 
-        /* ==========================================================
-           TRAININGS-VIEW (PERFEKT ZENTRIERT FÜR SMARTPHONES)
-           ========================================================== */
+        /* Zentrierter Timer-Bildschirm */
         #training-view {
             display: flex !important;
             justify-content: center !important;
@@ -307,8 +306,8 @@
         let boxingBell = null;
         let timerState = { stepIndex: 0, timeLeft: 0, totalRemaining: 0, isPaused: false };
 
-        // DIRECT-LINK: Achtung, Groß- und Kleinschreibung MUSS exakt wie in GitHub sein!
-        const githubExcelUrl = 'https://raw.githubusercontent.com/Michkern1AtDachsweg/trainingsplaner/main/Trainingsplan.xlsx';
+        const githubUrlPrimary = 'https://raw.githubusercontent.com/Michkern1AtDachsweg/trainingsplaner/main/Trainingsplan.xlsx';
+        const githubUrlFallback = 'https://raw.githubusercontent.com/Michkern1AtDachsweg/trainingsplaner/main/trainingsplan.xlsx';
 
         window.addEventListener('load', () => {
             try {
@@ -342,8 +341,8 @@
             document.getElementById('btn-stop').addEventListener('click', () => quitTraining(false));
         }
 
-        // Importiert und liest die Excel-Daten fehlerfrei aus
-        function importExcelData(arrayBuffer, isFromGithub = false) {
+        // *** HOCHROBUSTE IMPORT-FUNKTION (Sichert jeden Spaltenzugriff ab) ***
+        function importExcelData(arrayBuffer) {
             try {
                 const data = new Uint8Array(arrayBuffer);
                 const workbook = XLSX.read(data, { type: 'array' });
@@ -355,26 +354,38 @@
                 workbook.SheetNames.forEach(sheetName => {
                     const ws = workbook.Sheets[sheetName];
                     const jsonData = XLSX.utils.sheet_to_json(ws, { header: 1 });
+
+                    if (jsonData.length === 0) return;
+
                     const newPlan = { name: sheetName, steps: [] };
                     let headerFound = false;
 
                     for (const row of jsonData) {
-                        if (!row || !row[0]) continue;
-                        if (!headerFound && row[0].toString().toLowerCase().includes('zeit')) { headerFound = true; continue; }
+                        if (!row || row.length < 1 || !row[0]) continue;
+
+                        // Finde die Kopfzeile
+                        if (!headerFound && row[0].toString().toLowerCase().includes('zeit')) {
+                            headerFound = true;
+                            continue;
+                        }
                         if (!headerFound) continue;
 
-                        const baseName = row[0].toString().trim();
-                        const workMin = parseFloat(String(row[1] || 0).replace(',', '.')) || 0;
-                        const repeats = parseInt(row[2]) || 1;
-                        const pauseMin = parseFloat(String(row[3] || 0).replace(',', '.')) || 0;
-                        const note = row[5] ? row[5].toString().trim() : "";
+                        // *** ABSOLUT SICHERER SPALTEN-INDEX-ABGLEICH ***
+                        // Verhindert jeden Absturz bei unvollständigen Spalten
+                        const baseName = row[0] ? row[0].toString().trim() : "";
+                        const workMin = (row[1] !== undefined) ? parseFloat(String(row[1]).replace(',', '.')) : 0;
+                        const repeats = (row[2] !== undefined) ? parseInt(row[2]) : 1;
+                        const pauseMin = (row[3] !== undefined) ? parseFloat(String(row[3]).replace(',', '.')) : 0;
+                        const note = (row[5] !== undefined) ? row[5].toString().trim() : "";
+
+                        if (!baseName) continue;
 
                         for (let r = 1; r <= repeats; r++) {
                             newPlan.steps.push({
                                 name: `${baseName}${repeats > 1 ? ` (Runde ${r}/${repeats})` : ''}`,
                                 duration: workMin * 60,
                                 isPause: false,
-                                note: note || ""
+                                note: note
                             });
                             if (pauseMin > 0) {
                                 newPlan.steps.push({
@@ -386,16 +397,20 @@
                             }
                         }
                     }
-                    if (newPlan.steps.length > 0) allPlans[sheetName] = newPlan;
+                    if (newPlan.steps.length > 0) {
+                        allPlans[sheetName] = newPlan;
+                    }
                 });
 
                 saveToStorage();
                 updatePlanSelector();
 
-                const lastPlanName = workbook.SheetNames[workbook.SheetNames.length - 1];
-                if (allPlans[lastPlanName]) {
-                    document.getElementById('plan-selector').value = lastPlanName;
-                    currentPlan = allPlans[lastPlanName];
+                // Wähle den ersten importierten Plan aus
+                const planNames = Object.keys(allPlans);
+                if (planNames.length > 0) {
+                    const firstPlan = planNames[0];
+                    document.getElementById('plan-selector').value = firstPlan;
+                    currentPlan = allPlans[firstPlan];
                     renderPlanTable();
                 }
                 alert("Trainingspläne erfolgreich geladen!");
@@ -404,21 +419,29 @@
             }
         }
 
-        // Holt die Excel-Datei direkt von GitHub
+        // Holt die Excel-Datei direkt von GitHub (mit automatischer Weiche)
         function loadExcelFromGithub() {
             const btn = document.getElementById('btn-load-github');
             btn.textContent = "⌛ Lädt...";
             btn.disabled = true;
 
-            fetch(githubExcelUrl)
+            // Erster Versuch: "Trainingsplan.xlsx"
+            fetch(githubUrlPrimary)
                 .then(response => {
                     if (!response.ok) {
-                        throw new Error("GitHub-Verbindung fehlgeschlagen (Status: " + response.status + "). Stelle sicher, dass die Datei 'Trainingsplan.xlsx' im Hauptordner deines GitHubs liegt und der Name exakt übereinstimmt.");
+                        // Zweiter Versuch: "trainingsplan.xlsx"
+                        return fetch(githubUrlFallback);
+                    }
+                    return response;
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error("Excel-Datei konnte nicht geladen werden. Bitte lade die Datei 'Trainingsplan.xlsx' manuell hoch.");
                     }
                     return response.arrayBuffer();
                 })
                 .then(arrayBuffer => {
-                    importExcelData(arrayBuffer, true);
+                    importExcelData(arrayBuffer);
                     btn.textContent = "🌐 Vorlage laden";
                     btn.disabled = false;
                 })
@@ -429,12 +452,13 @@
                 });
         }
 
+        // Manueller Excel-Import (völlig unabhängig von der GitHub-Funktion)
         function handleExcelImport(e) {
             const file = e.target.files[0];
             if (!file) return;
             const reader = new FileReader();
             reader.onload = (event) => {
-                importExcelData(event.target.result, false);
+                importExcelData(event.target.result);
             };
             reader.readAsArrayBuffer(file);
         }
@@ -496,7 +520,6 @@
         function startTraining() {
             if (!currentPlan || currentPlan.steps.length === 0) return;
 
-            // LAZY AUDIO-LOAD: Initialisiert den Ton erst beim echten Klick!
             if (!boxingBell) {
                 try {
                     boxingBell = new Audio('boxing-bell.mp3');
