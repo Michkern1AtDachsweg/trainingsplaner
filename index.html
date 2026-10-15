@@ -301,216 +301,777 @@
     </div>
 
     <script>
-        let allPlans = {};
-        let currentPlan = null;
-        let activeInterval = null;
-        const boxingBell = new Audio('boxing-bell.mp3');
-        let timerState = { stepIndex: 0, timeLeft: 0, totalRemaining: 0, isPaused: false };
+                let allPlans = {};
+                let currentPlan = null;
+                let activeInterval = null;
+                const boxingBell = new Audio('boxing-bell.mp3');
+                let timerState = { stepIndex: 0, timeLeft: 0, totalRemaining: 0, isPaused: false };
 
-        // Die URL zu deiner hochgeladenen Excel-Datei auf GitHub
-        const githubExcelUrl = 'https://raw.githubusercontent.com/Michkern1AtDachsweg/trainingsplaner/main/Trainingsplan.xlsx';
+                // Die URL zu deiner hochgeladenen Excel-Datei auf GitHub
+                const githubExcelUrl = 'https://raw.githubusercontent.com/Michkern1AtDachsweg/trainingsplaner/main/Trainingsplan.xlsx';
 
-        window.addEventListener('load', () => {
-            try {
-                const saved = localStorage.getItem('trainingsplaene');
-                if (saved) {
-                    allPlans = JSON.parse(saved);
-                    updatePlanSelector();
-                    const firstPlanName = Object.keys(allPlans)[0];
-                    if (firstPlanName) {
-                        document.getElementById('plan-selector').value = firstPlanName;
-                        currentPlan = allPlans[firstPlanName];
-                    }
-                }
-            } catch (e) { console.error("Fehler beim Laden:", e); }
-            initEventListeners();
-            renderPlanTable();
-        });
-
-        function initEventListeners() {
-            document.getElementById('excel-input').addEventListener('change', handleExcelImport);
-            document.getElementById('btn-load-github').addEventListener('click', loadExcelFromGithub);
-
-            document.getElementById('plan-selector').addEventListener('change', (e) => {
-                currentPlan = allPlans[e.target.value] || null;
-                renderPlanTable();
-            });
-            document.getElementById('btn-delete-plan').addEventListener('click', deleteCurrentPlan);
-            document.getElementById('btn-start-training').addEventListener('click', startTraining);
-            document.getElementById('btn-pause').addEventListener('click', togglePause);
-            document.getElementById('btn-skip').addEventListener('click', skipStep);
-            document.getElementById('btn-stop').addEventListener('click', () => quitTraining(false));
-        }
-
-        // Importiert eine Excel-Datei aus einem Daten-Buffer
-        function importExcelData(arrayBuffer) {
-            try {
-                const data = new Uint8Array(arrayBuffer);
-                const workbook = XLSX.read(data, { type: 'array' });
-                workbook.SheetNames.forEach(sheetName => {
-                    const ws = workbook.Sheets[sheetName];
-                    const jsonData = XLSX.utils.sheet_to_json(ws, { header: 1 });
-                    const newPlan = { name: sheetName, steps: [] };
-                    let headerFound = false;
-
-                    for (const row of jsonData) {
-                        if (!row || !row[0]) continue;
-                        if (!headerFound && row[0].toString().toLowerCase().includes('zeit')) { headerFound = true; continue; }
-                        if (!headerFound) continue;
-
-                        const [baseName, workMin, repeats, pauseMin, , note] = row;
-                        const parsedWorkMin = parseFloat(String(workMin).replace(',', '.')) || 0;
-                        const parsedRepeats = parseInt(repeats) || 1;
-                        const parsedPauseMin = parseFloat(String(pauseMin).replace(',', '.')) || 0;
-
-                        for (let r = 1; r <= parsedRepeats; r++) {
-                            newPlan.steps.push({ name: `${baseName}${parsedRepeats > 1 ? ` (Runde ${r}/${parsedRepeats})` : ''}`, duration: parsedWorkMin * 60, isPause: false, note: note || "" });
-                            if (parsedPauseMin > 0) {
-                                newPlan.steps.push({ name: "Pause", duration: parsedPauseMin * 60, isPause: true, note: `Nächste Übung: ${baseName}` });
+                window.addEventListener('load', () => {
+                    try {
+                        const saved = localStorage.getItem('trainingsplaene');
+                        if (saved) {
+                            allPlans = JSON.parse(saved);
+                            updatePlanSelector();
+                            const firstPlanName = Object.keys(allPlans)[0];
+                            if (firstPlanName) {
+                                document.getElementById('plan-selector').value = firstPlanName;
+                                currentPlan = allPlans[firstPlanName];
                             }
                         }
-                    }
-                    if (newPlan.steps.length > 0) allPlans[sheetName] = newPlan;
-                });
-                saveToStorage();
-                updatePlanSelector();
-                const lastPlanName = workbook.SheetNames[workbook.SheetNames.length - 1];
-                if (allPlans[lastPlanName]) {
-                    document.getElementById('plan-selector').value = lastPlanName;
-                    currentPlan = allPlans[lastPlanName];
+                    } catch (e) { console.error("Fehler beim Laden:", e); }
+                    initEventListeners();
                     renderPlanTable();
-                }
-                alert("Trainingspläne erfolgreich geladen!");
-            } catch (err) { alert("Fehler beim Verarbeiten der Excel-Daten."); }
-        }
-
-        // Holt die Excel-Datei vollautomatisch direkt von GitHub
-        function loadExcelFromGithub() {
-            const btn = document.getElementById('btn-load-github');
-            btn.textContent = "⌛ Lädt...";
-            btn.disabled = true;
-
-            fetch(githubExcelUrl)
-                .then(response => {
-                    if (!response.ok) throw new Error("Netzwerkfehler beim Abruf von GitHub.");
-                    return response.arrayBuffer();
-                })
-                .then(arrayBuffer => {
-                    importExcelData(arrayBuffer);
-                    btn.textContent = "🌐 Vorlage laden";
-                    btn.disabled = false;
-                })
-                .catch(err => {
-                    alert("Fehler beim Laden von GitHub: " + err.message);
-                    btn.textContent = "🌐 Vorlage laden";
-                    btn.disabled = false;
                 });
+
+                function initEventListeners() {
+                    document.getElementById('excel-input').addEventListener('change', handleExcelImport);
+                    document.getElementById('btn-load-github').addEventListener('click', loadExcelFromGithub);
+
+                    document.getElementById('plan-selector').addEventListener('change', (e) => {
+                        currentPlan = allPlans[e.target.value] || null;
+                        renderPlanTable();
+                    });
+                    document.getElementById('btn-delete-plan').addEventListener('click', deleteCurrentPlan);
+                    document.getElementById('btn-start-training').addEventListener('click', startTraining);
+                    document.getElementById('btn-pause').addEventListener('click', togglePause);
+                    document.getElementById('btn-skip').addEventListener('click', skipStep);
+                    document.getElementById('btn-stop').addEventListener('click', () => quitTraining(false));
+                }
+
+                // Importiert eine Excel-Datei aus einem Daten-Buffer
+                function importExcelData(arrayBuffer) {
+                    try {
+                        const data = new Uint8Array(arrayBuffer);
+                        const workbook = XLSX.read(data, { type: 'array' });
+                        workbook.SheetNames.forEach(sheetName => {
+                            const ws = workbook.Sheets[sheetName];
+                            const jsonData = XLSX.utils.sheet_to_json(ws, { header: 1 });
+                            const newPlan = { name: sheetName, steps: [] };
+                            let headerFound = false;
+
+                            for (const row of jsonData) {
+                                if (!row || !row[0]) continue;
+                                if (!headerFound && row[0].toString().toLowerCase().includes('zeit')) { headerFound = true; continue; }
+                                if (!headerFound) continue;
+
+                                const [baseName, workMin, repeats, pauseMin, , note] = row;
+                                const parsedWorkMin = parseFloat(String(workMin).replace(',', '.')) || 0;
+                                const parsedRepeats = parseInt(repeats) || 1;
+                                const parsedPauseMin = parseFloat(String(pauseMin).replace(',', '.')) || 0;
+
+                                for (let r = 1; r <= parsedRepeats; r++) {
+                                    newPlan.steps.push({ name: `${baseName}${parsedRepeats > 1 ? ` (Runde ${r}/${parsedRepeats})` : ''}`, duration: parsedWorkMin * 60, isPause: false, note: note || "" });
+                                    if (parsedPauseMin > 0) {
+                                        newPlan.steps.push({ name: "Pause", duration: parsedPauseMin * 60, isPause: true, note: `Nächste Übung: ${baseName}` });
+                                    }
+                                }
+                            }
+                            if (newPlan.steps.length > 0) allPlans[sheetName] = newPlan;
+                        });
+                        saveToStorage();
+                        updatePlanSelector();
+                        const lastPlanName = workbook.SheetNames[workbook.SheetNames.length - 1];
+                        if (allPlans[lastPlanName]) {
+                            document.getElementById('plan-selector').value = lastPlanName;
+                            currentPlan = allPlans[lastPlanName];
+                            renderPlanTable();
+                        }
+                        alert("Trainingspläne erfolgreich geladen!");
+                    } catch (err) { alert("Fehler beim Verarbeiten der Excel-Daten."); }
+                }
+
+                // Holt die Excel-Datei vollautomatisch direkt von GitHub
+                function loadExcelFromGithub() {
+                    const btn = document.getElementById('btn-load-github');
+                    btn.textContent = "⌛ Lädt...";
+                    btn.disabled = true;
+
+                    fetch(githubExcelUrl)
+                        .then(response => {
+                            if (!response.ok) throw new Error("Netzwerkfehler beim Abruf von GitHub.");
+                            return response.arrayBuffer();
+                        })
+                        .then(arrayBuffer => {
+                            importExcelData(arrayBuffer);
+                            btn.textContent = "🌐 Vorlage laden";
+                            btn.disabled = false;
+                        })
+                        .catch(err => {
+                            alert("Fehler beim Laden von GitHub: " + err.message);
+                            btn.textContent = "🌐 Vorlage laden";
+                            btn.disabled = false;
+                        });
+                }
+
+                function handleExcelImport(e) {
+                    const file = e.target.files[0];
+                    if (!file) return;
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                        importExcelData(event.target.result);
+                    };
+                    reader.readAsArrayBuffer(file);
+                }
+
+                function deleteCurrentPlan() {
+                    if (!currentPlan) return;
+                    if (confirm(`Soll der Plan "${currentPlan.name}" gelöscht werden?`)) {
+                        delete allPlans[currentPlan.name];
+                        currentPlan = null;
+                        document.getElementById('plan-selector').value = "";
+                        saveToStorage();
+                        updatePlanSelector();
+                        renderPlanTable();
+                    }
+                }
+
+                function updatePlanSelector() {
+                    const selector = document.getElementById('plan-selector');
+                    selector.innerHTML = '<option value="">-- Wähle einen Plan --</option>';
+                    Object.keys(allPlans).forEach(name => selector.add(new Option(name, name)));
+                    if (currentPlan) selector.value = currentPlan.name;
+                }
+
+                function renderPlanTable() {
+                    const tableBody = document.getElementById('plan-table').querySelector('tbody');
+                    const startButton = document.getElementById('btn-start-training');
+                    tableBody.innerHTML = "";
+
+                    if (!currentPlan || currentPlan.steps.length === 0) {
+                        document.getElementById('lbl-total-time').textContent = "Gesamtdauer: 00:00";
+                        document.getElementById('lbl-end-time').textContent = "Endzeit: --:--";
+                        startButton.disabled = true;
+                        return;
+                    }
+
+                    startButton.disabled = false;
+                    let totalSeconds = currentPlan.steps.reduce((acc, step) => acc + step.duration, 0);
+                    currentPlan.steps.forEach(step => {
+                        const tr = document.createElement('tr');
+                        if (step.isPause) tr.style.backgroundColor = "rgba(41, 128, 185, 0.15)";
+                        tr.innerHTML = `<td>${step.name}</td><td>${formatTime(step.duration)}</td><td>${step.isPause ? "✔️" : "❌"}</td><td style="font-size:12px;color:#888;">${step.note}</td>`;
+                        tableBody.appendChild(tr);
+                    });
+                    document.getElementById('lbl-total-time').textContent = `Gesamtdauer: ${formatTime(totalSeconds)}`;
+                    const end = new Date(Date.now() + totalSeconds * 1000);
+                    document.getElementById('lbl-end-time').textContent = `Endzeit: ${end.getHours().toString().padStart(2, '0')}:${end.getMinutes().toString().padStart(2, '0')} Uhr`;
+                }
+
+                function formatTime(seconds) {
+                    const m = Math.floor(seconds / 60).toString().padStart(2, '0');
+                    const s = Math.round(seconds % 60).toString().padStart(2, '0');
+                    return `${m}:${s}`;
+                }
+
+                function saveToStorage() {
+                    localStorage.setItem('trainingsplaene', JSON.stringify(allPlans));
+                }
+
+                function startTraining() {
+                    if (!currentPlan || currentPlan.steps.length === 0) return;
+                    document.getElementById('main-view').classList.add('hidden');
+                    document.getElementById('training-view').classList.remove('hidden');
+                    timerState = { stepIndex: 0, isPaused: false, totalRemaining: currentPlan.steps.reduce((acc, s) => acc + s.duration, 0) };
+                    runStep();
+                }
+
+                function runStep() {
+                    if (timerState.stepIndex >= currentPlan.steps.length) {
+                        clearInterval(activeInterval);
+                        try { boxingBell.play(); } catch (e) { }
+                        alert("Training beendet! Starke Leistung!");
+                        quitTraining(true);
+                        return;
+                    }
+                    const step = currentPlan.steps[timerState.stepIndex];
+                    timerState.timeLeft = step.duration;
+                    document.getElementById('timer-step-name').textContent = step.name.toUpperCase();
+                    document.getElementById('timer-note').textContent = step.note || "";
+                    document.getElementById('training-view').style.backgroundColor = step.isPause ? "#2980b9" : "#c0392b";
+                    updateNextExercise();
+                    updateTimerDisplay();
+                    try { boxingBell.play(); } catch (e) { }
+                    clearInterval(activeInterval);
+                    activeInterval = setInterval(timerTick, 1000);
+                }
+
+                function timerTick() {
+                    if (timerState.isPaused) return;
+
+                    if (timerState.timeLeft <= 4 && timerState.timeLeft > 1) {
+                        try {
+                            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                            const osc = ctx.createOscillator();
+                            osc.type = "sine";
+                            osc.frequency.value = 1800;
+                            osc.connect(ctx.destination);
+                            osc.start();
+                            setTimeout(() => osc.stop(), 80);<!DOCTYPE html>
+<html lang="de">
+<head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+            <title>Box- & Intervalltimer Pro</title>
+            <link rel="manifest" href="manifest.json">
+            <!-- Excel-Parser Bibliothek -->
+            <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+    <style>
+        :root {
+            --bg-dark: #1e272e;
+            --panel-dark: #2f3640;
+            --text-light: #f5f6fa;
+            --text-muted: #9c88ff;
+            --green: #4cd137;
+            --red: #e84118;
+            --orange: #fbc531;
+            --blue: #00a8ff;
+            --safe-area-bottom: env(safe-area-inset-bottom, 35px);
         }
 
-        function handleExcelImport(e) {
-            const file = e.target.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                importExcelData(event.target.result);
-            };
-            reader.readAsArrayBuffer(file);
+        body, html {
+            height: 100%;
+            width: 100%;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: var(--bg-dark);
+            color: var(--text-light);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
         }
 
-        function deleteCurrentPlan() {
-            if (!currentPlan) return;
-            if (confirm(`Soll der Plan "${currentPlan.name}" gelöscht werden?`)) {
-                delete allPlans[currentPlan.name];
-                currentPlan = null;
-                document.getElementById('plan-selector').value = "";
-                saveToStorage();
-                updatePlanSelector();
-                renderPlanTable();
+        .view {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            width: 100%;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        header {
+            padding: 15px;
+            background-color: var(--panel-dark);
+            flex-shrink: 0;
+            margin: 10px 10px 0 10px;
+            border-radius: 8px;
+        }
+
+        select, .btn {
+            width: 100%;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 16px;
+            border: 1px solid #576574;
+            background-color: var(--bg-dark);
+            color: var(--text-light);
+        }
+
+        .header-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .btn {
+            border: none;
+            font-weight: bold;
+            cursor: pointer;
+            flex: 1;
+        }
+
+        .btn-orange {
+            background-color: var(--orange);
+            color: #1e272e;
+        }
+
+        .btn-red {
+            background-color: var(--red);
+        }
+
+        .btn-green {
+            background-color: var(--green);
+        }
+
+        .btn-blue {
+            background-color: var(--blue);
+        }
+
+        #btn-start-training:disabled {
+            background-color: #576574;
+            cursor: not-allowed;
+            opacity: 0.5;
+        }
+
+        main {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 15px;
+        }
+
+        .table-container {
+            width: 100%;
+            background-color: var(--panel-dark);
+            border-radius: 10px;
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #3f4756;
+        }
+
+        th {
+            background-color: #3f4756;
+            position: sticky;
+            top: 0;
+        }
+
+        footer {
+            padding: 15px;
+            padding-bottom: calc(45px + var(--safe-area-bottom)) !important;
+            background-color: var(--panel-dark);
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin: 0 10px 10px 10px;
+            border-radius: 8px;
+        }
+
+        .time-summary {
+            display: flex;
+            justify-content: space-between;
+            font-weight: bold;
+        }
+
+        /* ==========================================================
+           TRAININGS-VIEW (PERFEKT ZENTRIERT FÜR SMARTPHONES)
+           ========================================================== */
+        #training-view {
+            display: flex !important;
+            justify-content: center !important;
+            align-items: center !important;
+            text-align: center !important;
+            width: 100%;
+            height: 100%;
+        }
+
+        .training-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-between;
+            width: 100%;
+            max-width: 500px;
+            height: 100%;
+            padding: 20px;
+            padding-bottom: calc(50px + var(--safe-area-bottom)) !important;
+        }
+
+        #timer-step-name {
+            font-size: 28px;
+            font-weight: 900;
+            text-transform: uppercase;
+        }
+
+        #timer-note {
+            font-size: 16px;
+            color: var(--orange);
+        }
+
+        #timer-countdown {
+            font-size: clamp(80px, 15vh, 130px);
+            font-weight: 900;
+            font-variant-numeric: tabular-nums;
+            margin: 15px 0;
+        }
+
+        .training-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            width: 100%;
+        }
+
+        .info-card {
+            background-color: var(--panel-dark);
+            padding: 12px;
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+            .info-card span {
+                font-size: 11px;
+                color: #a4b0be;
             }
-        }
 
-        function updatePlanSelector() {
-            const selector = document.getElementById('plan-selector');
-            selector.innerHTML = '<option value="">-- Wähle einen Plan --</option>';
-            Object.keys(allPlans).forEach(name => selector.add(new Option(name, name)));
-            if (currentPlan) selector.value = currentPlan.name;
-        }
-
-        function renderPlanTable() {
-            const tableBody = document.getElementById('plan-table').querySelector('tbody');
-            const startButton = document.getElementById('btn-start-training');
-            tableBody.innerHTML = "";
-
-            if (!currentPlan || currentPlan.steps.length === 0) {
-                document.getElementById('lbl-total-time').textContent = "Gesamtdauer: 00:00";
-                document.getElementById('lbl-end-time').textContent = "Endzeit: --:--";
-                startButton.disabled = true;
-                return;
+            .info-card strong {
+                font-size: 15px;
+                margin-top: 3px;
             }
 
-            startButton.disabled = false;
-            let totalSeconds = currentPlan.steps.reduce((acc, step) => acc + step.duration, 0);
-            currentPlan.steps.forEach(step => {
-                const tr = document.createElement('tr');
-                if (step.isPause) tr.style.backgroundColor = "rgba(41, 128, 185, 0.15)";
-                tr.innerHTML = `<td>${step.name}</td><td>${formatTime(step.duration)}</td><td>${step.isPause ? "✔️" : "❌"}</td><td style="font-size:12px;color:#888;">${step.note}</td>`;
-                tableBody.appendChild(tr);
-            });
-            document.getElementById('lbl-total-time').textContent = `Gesamtdauer: ${formatTime(totalSeconds)}`;
-            const end = new Date(Date.now() + totalSeconds * 1000);
-            document.getElementById('lbl-end-time').textContent = `Endzeit: ${end.getHours().toString().padStart(2, '0')}:${end.getMinutes().toString().padStart(2, '0')} Uhr`;
+        #timer-next-exercise {
+            background-color: rgba(255,255,255,0.05);
+            padding: 12px;
+            border-radius: 8px;
+            font-weight: bold;
+            font-size: 15px;
+            width: 100%;
         }
 
-        function formatTime(seconds) {
-            const m = Math.floor(seconds / 60).toString().padStart(2, '0');
-            const s = Math.round(seconds % 60).toString().padStart(2, '0');
-            return `${m}:${s}`;
+        .timer-controls {
+            display: flex;
+            gap: 10px;
+            width: 100%;
         }
 
-        function saveToStorage() {
-            localStorage.setItem('trainingsplaene', JSON.stringify(allPlans));
-        }
-
-        function startTraining() {
-            if (!currentPlan || currentPlan.steps.length === 0) return;
-            document.getElementById('main-view').classList.add('hidden');
-            document.getElementById('training-view').classList.remove('hidden');
-            timerState = { stepIndex: 0, isPaused: false, totalRemaining: currentPlan.steps.reduce((acc, s) => acc + s.duration, 0) };
-            runStep();
-        }
-
-        function runStep() {
-            if (timerState.stepIndex >= currentPlan.steps.length) {
-                clearInterval(activeInterval);
-                try { boxingBell.play(); } catch (e) { }
-                alert("Training beendet! Starke Leistung!");
-                quitTraining(true);
-                return;
+            .timer-controls .btn {
+                padding: 15px;
+                font-size: 16px;
             }
-            const step = currentPlan.steps[timerState.stepIndex];
-            timerState.timeLeft = step.duration;
-            document.getElementById('timer-step-name').textContent = step.name.toUpperCase();
-            document.getElementById('timer-note').textContent = step.note || "";
-            document.getElementById('training-view').style.backgroundColor = step.isPause ? "#2980b9" : "#c0392b";
-            updateNextExercise();
-            updateTimerDisplay();
-            try { boxingBell.play(); } catch (e) { }
-            clearInterval(activeInterval);
-            activeInterval = setInterval(timerTick, 1000);
-        }
+    </style>
+    </head>
+    <body>
 
-        function timerTick() {
-            if (timerState.isPaused) return;
+        <!-- HAUPTFENSTER: Plan-Verwaltung -->
+        <div id="main-view" class="view">
+            <header>
+                <select id="plan-selector">
+                    <option value="">-- Pläne laden... --</option>
+                </select>
+                <div class="header-buttons">
+                    <button id="btn-load-github" class="btn btn-blue">🌐 Vorlage laden</button>
+                    <label class="btn btn-orange" for="excel-input">📥 Excel Laden</label>
+                    <input type="file" id="excel-input" accept=".xlsx" style="display:none;">
+                    <button id="btn-delete-plan" class="btn btn-red">🗑️ Löschen</button>
+                </div>
+            </header>
 
-            if (timerState.timeLeft <= 4 && timerState.timeLeft > 1) {
-                try {
-                    const ctx = new (window.AudioContext || window.webkitAudioContext)();
-                    const osc = ctx.createOscillator();
-                    osc.type = "sine";
-                    osc.frequency.value = 1800;
-                    osc.connect(ctx.destination);
-                    osc.start();
-                    setTimeout(() => osc.stop(), 80);
+            <main>
+                <div class="table-container">
+                    <table id="plan-table">
+                        <thead>
+                            <tr>
+                                <th>Phase</th>
+                                <th>Dauer</th>
+                                <th>Pause?</th>
+                                <th>Bemerkung</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </main>
+
+            <footer>
+                <div class="time-summary">
+                    <div id="lbl-total-time">Gesamtdauer: 00:00</div>
+                    <div id="lbl-end-time">Endzeit: --:-- Uhr</div>
+                </div>
+                <button id="btn-start-training" class="btn btn-green btn-large">⚡ TRAINING STARTEN</button>
+            </footer>
+        </div>
+
+        <!-- TRAININGS-MODUS (Vollbild-Timer) -->
+        <div id="training-view" class="view hidden">
+            <div class="training-container">
+                <h1 id="timer-step-name">LAUFEN</h1>
+                <p id="timer-note">Aufwärmen</p>
+                <div id="timer-countdown">10:00</div>
+
+                <div class="training-grid">
+                    <div class="info-card"><span>⏳ Restzeit</span><strong id="timer-total-remaining">00:00</strong></div>
+                    <div class="info-card"><span>🔄 Phasen</span><strong id="timer-rounds">0/0</strong></div>
+                    <div class="info-card"><span>🏁 Ende</span><strong id="timer-end-time">--:--</strong></div>
+                </div>
+
+                <div id="timer-next-exercise">NÄCHSTE ÜBUNG: ...</div>
+
+                <div class="timer-controls">
+                    <button id="btn-pause" class="btn btn-orange">⏸️ PAUSE</button>
+                    <button id="btn-skip" class="btn btn-blue">⏭️ SKIP</button>
+                    <button id="btn-stop" class="btn btn-red">⏹️ BEENDEN</button>
+                </div>
+            </div>
+        </div>
+
+        <script>
+                    let allPlans = {};
+                    let currentPlan = null;
+                    let activeInterval = null;
+                    const boxingBell = new Audio('boxing-bell.mp3');
+                    let timerState = { stepIndex: 0, timeLeft: 0, totalRemaining: 0, isPaused: false };
+
+                    // KORREKTUR: Nutzt jetzt die freigeschaltete Githack-Proxy-Adresse, um CORS-Blockaden zu verhindern!
+                    const githubExcelUrl = 'https://raw.githack.com/Michkern1AtDachsweg/trainingsplaner/main/Trainingsplan.xlsx';
+
+                    window.addEventListener('load', () => {
+                        try {
+                            const saved = localStorage.getItem('trainingsplaene');
+                            if (saved) {
+                                allPlans = JSON.parse(saved);
+                                updatePlanSelector();
+                                const firstPlanName = Object.keys(allPlans)[0];
+                                if (firstPlanName) {
+                                    document.getElementById('plan-selector').value = firstPlanName;
+                                    currentPlan = allPlans[firstPlanName];
+                                }
+                            }
+                        } catch (e) { console.error("Fehler beim Laden:", e); }
+                        initEventListeners();
+                        renderPlanTable();
+                    });
+
+                    function initEventListeners() {
+                        document.getElementById('excel-input').addEventListener('change', handleExcelImport);
+                        document.getElementById('btn-load-github').addEventListener('click', loadExcelFromGithub);
+
+                        document.getElementById('plan-selector').addEventListener('change', (e) => {
+                            currentPlan = allPlans[e.target.value] || null;
+                            renderPlanTable();
+                        });
+                        document.getElementById('btn-delete-plan').addEventListener('click', deleteCurrentPlan);
+                        document.getElementById('btn-start-training').addEventListener('click', startTraining);
+                        document.getElementById('btn-pause').addEventListener('click', togglePause);
+                        document.getElementById('btn-skip').addEventListener('click', skipStep);
+                        document.getElementById('btn-stop').addEventListener('click', () => quitTraining(false));
+                    }
+
+                    // Importiert Excel-Datei aus einem Daten-Buffer
+                    function importExcelData(arrayBuffer) {
+                        try {
+                            const data = new Uint8Array(arrayBuffer);
+                            const workbook = XLSX.read(data, { type: 'array' });
+                            workbook.SheetNames.forEach(sheetName => {
+                                const ws = workbook.Sheets[sheetName];
+                                const jsonData = XLSX.utils.sheet_to_json(ws, { header: 1 });
+                                const newPlan = { name: sheetName, steps: [] };
+                                let headerFound = false;
+
+                                for (const row of jsonData) {
+                                    if (!row || !row[0]) continue;
+                                    if (!headerFound && row[0].toString().toLowerCase().includes('zeit')) { headerFound = true; continue; }
+                                    if (!headerFound) continue;
+
+                                    const [baseName, workMin, repeats, pauseMin, , note] = row;
+                                    const parsedWorkMin = parseFloat(String(workMin).replace(',', '.')) || 0;
+                                    const parsedRepeats = parseInt(repeats) || 1;
+                                    const parsedPauseMin = parseFloat(String(pauseMin).replace(',', '.')) || 0;
+
+                                    for (let r = 1; r <= parsedRepeats; r++) {
+                                        newPlan.steps.push({ name: `${baseName}${parsedRepeats > 1 ? ` (Runde ${r}/${parsedRepeats})` : ''}`, duration: parsedWorkMin * 60, isPause: false, note: note || "" });
+                                        if (parsedPauseMin > 0) {
+                                            newPlan.steps.push({ name: "Pause", duration: parsedPauseMin * 60, isPause: true, note: `Nächste Übung: ${baseName}` });
+                                        }
+                                    }
+                                }
+                                if (newPlan.steps.length > 0) allPlans[sheetName] = newPlan;
+                            });
+                            saveToStorage();
+                            updatePlanSelector();
+                            const lastPlanName = workbook.SheetNames[workbook.SheetNames.length - 1];
+                            if (allPlans[lastPlanName]) {
+                                document.getElementById('plan-selector').value = lastPlanName;
+                                currentPlan = allPlans[lastPlanName];
+                                renderPlanTable();
+                            }
+                            alert("Trainingspläne erfolgreich geladen!");
+                        } catch (err) { alert("Fehler beim Verarbeiten der Excel-Daten."); }
+                    }
+
+                    // Holt die Excel-Datei vollautomatisch direkt von GitHub
+                    function loadExcelFromGithub() {
+                        const btn = document.getElementById('btn-load-github');
+                        btn.textContent = "⌛ Lädt...";
+                        btn.disabled = true;
+
+                        fetch(githubExcelUrl)
+                            .then(response => {
+                                if (!response.ok) throw new Error("Netzwerkfehler beim Abruf von GitHub.");
+                                return response.arrayBuffer();
+                            })
+                            .then(arrayBuffer => {
+                                importExcelData(arrayBuffer);
+                                btn.textContent = "🌐 Vorlage laden";
+                                btn.disabled = false;
+                            })
+                            .catch(err => {
+                                alert("Fehler beim Laden von GitHub: " + err.message);
+                                btn.textContent = "🌐 Vorlage laden";
+                                btn.disabled = false;
+                            });
+                    }
+
+                    function handleExcelImport(e) {
+                        const file = e.target.files[0];
+                        if (!file) return;
+                        const reader = new FileReader();
+                        reader.onload = (event) => {
+                            importExcelData(event.target.result);
+                        };
+                        reader.readAsArrayBuffer(file);
+                    }
+
+                    function deleteCurrentPlan() {
+                        if (!currentPlan) return;
+                        if (confirm(`Soll der Plan "${currentPlan.name}" gelöscht werden?`)) {
+                            delete allPlans[currentPlan.name];
+                            currentPlan = null;
+                            document.getElementById('plan-selector').value = "";
+                            saveToStorage();
+                            updatePlanSelector();
+                            renderPlanTable();
+                        }
+                    }
+
+                    function updatePlanSelector() {
+                        const selector = document.getElementById('plan-selector');
+                        selector.innerHTML = '<option value="">-- Wähle einen Plan --</option>';
+                        Object.keys(allPlans).forEach(name => selector.add(new Option(name, name)));
+                        if (currentPlan) selector.value = currentPlan.name;
+                    }
+
+                    function renderPlanTable() {
+                        const tableBody = document.getElementById('plan-table').querySelector('tbody');
+                        const startButton = document.getElementById('btn-start-training');
+                        tableBody.innerHTML = "";
+
+                        if (!currentPlan || currentPlan.steps.length === 0) {
+                            document.getElementById('lbl-total-time').textContent = "Gesamtdauer: 00:00";
+                            document.getElementById('lbl-end-time').textContent = "Endzeit: --:--";
+                            startButton.disabled = true;
+                            return;
+                        }
+
+                        startButton.disabled = false;
+                        let totalSeconds = currentPlan.steps.reduce((acc, step) => acc + step.duration, 0);
+                        currentPlan.steps.forEach(step => {
+                            const tr = document.createElement('tr');
+                            if (step.isPause) tr.style.backgroundColor = "rgba(41, 128, 185, 0.15)";
+                            tr.innerHTML = `<td>${step.name}</td><td>${formatTime(step.duration)}</td><td>${step.isPause ? "✔️" : "❌"}</td><td style="font-size:12px;color:#888;">${step.note}</td>`;
+                            tableBody.appendChild(tr);
+                        });
+                        document.getElementById('lbl-total-time').textContent = `Gesamtdauer: ${formatTime(totalSeconds)}`;
+                        const end = new Date(Date.now() + totalSeconds * 1000);
+                        document.getElementById('lbl-end-time').textContent = `Endzeit: ${end.getHours().toString().padStart(2, '0')}:${end.getMinutes().toString().padStart(2, '0')} Uhr`;
+                    }
+
+                    function formatTime(seconds) {
+                        const m = Math.floor(seconds / 60).toString().padStart(2, '0');
+                        const s = Math.round(seconds % 60).toString().padStart(2, '0');
+                        return `${m}:${s}`;
+                    }
+
+                    function saveToStorage() {
+                        localStorage.setItem('trainingsplaene', JSON.stringify(allPlans));
+                    }
+
+                    function startTraining() {
+                        if (!currentPlan || currentPlan.steps.length === 0) return;
+                        document.getElementById('main-view').classList.add('hidden');
+                        document.getElementById('training-view').classList.remove('hidden');
+                        timerState = { stepIndex: 0, isPaused: false, totalRemaining: currentPlan.steps.reduce((acc, s) => acc + s.duration, 0) };
+                        runStep();
+                    }
+
+                    function runStep() {
+                        if (timerState.stepIndex >= currentPlan.steps.length) {
+                            clearInterval(activeInterval);
+                            try { boxingBell.play(); } catch(e) {}
+                            alert("Training beendet! Starke Leistung!");
+                            quitTraining(true);
+                            return;
+                        }
+                        const step = currentPlan.steps[timerState.stepIndex];
+                        timerState.timeLeft = step.duration;
+                        document.getElementById('timer-step-name').textContent = step.name.toUpperCase();
+                        document.getElementById('timer-note').textContent = step.note || "";
+                        document.getElementById('training-view').style.backgroundColor = step.isPause ? "#2980b9" : "#c0392b";
+                        updateNextExercise();
+                        updateTimerDisplay();
+                        try { boxingBell.play(); } catch(e) {}
+                        clearInterval(activeInterval);
+                        activeInterval = setInterval(timerTick, 1000);
+                    }
+
+                    function timerTick() {
+                        if (timerState.isPaused) return;
+
+                        if (timerState.timeLeft <= 4 && timerState.timeLeft > 1) {
+                            try {
+                                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                                const osc = ctx.createOscillator();
+                                osc.type = "sine";
+                                osc.frequency.value = 1800;
+                                osc.connect(ctx.destination);
+                                osc.start();
+                                setTimeout(() => osc.stop(), 80);
+                            } catch(e) {}
+                        }
+
+                        if (timerState.timeLeft <= 1) {
+                            timerState.stepIndex++;
+                            runStep();
+                        } else {
+                            timerState.timeLeft--;
+                            timerState.totalRemaining--;
+                            updateTimerDisplay();
+                        }
+                    }
+
+                    function updateTimerDisplay() {
+                        document.getElementById('timer-countdown').textContent = formatTime(timerState.timeLeft);
+                        document.getElementById('timer-total-remaining').textContent = formatTime(timerState.totalRemaining);
+                        document.getElementById('timer-rounds').textContent = `${timerState.stepIndex + 1}/${currentPlan.steps.length}`;
+                        const end = new Date(Date.now() + timerState.totalRemaining * 1000);
+                        document.getElementById('timer-end-time').textContent = `${end.getHours().toString().padStart(2, '0')}:${end.getMinutes().toString().padStart(2, '0')}`;
+                    }
+
+                    function updateNextExercise() {
+                        const next = currentPlan.steps.slice(timerState.stepIndex + 1).find(s => !s.isPause);
+                        document.getElementById('timer-next-exercise').textContent = next ? `NÄCHSTE ÜBUNG: ${next.name}` : "LETZTE RUNDE! GIB ALLES!";
+                    }
+
+                    function togglePause() {
+                        timerState.isPaused = !timerState.isPaused;
+                        document.getElementById('btn-pause').textContent = timerState.isPaused ? "▶️ FORTSETZEN" : "⏸️ PAUSE";
+                        document.getElementById('training-view').style.backgroundColor = timerState.isPaused ? "#7f8c8d" : (currentPlan.steps[timerState.stepIndex].isPause ? "#2980b9" : "#c0392b");
+                    }
+
+                    function skipStep() {
+                        timerState.totalRemaining -= timerState.timeLeft;
+                        timerState.stepIndex++;
+                        runStep();
+                    }
+
+                    function quitTraining(force = false) {
+                        if (force || confirm("Training abbrechen?")) {
+                            clearInterval(activeInterval);
+                            document.getElementById('training-view').classList.add('hidden');
+                            document.getElementById('main-view').classList.remove('hidden');
+                            renderPlanTable();
+                        }
+                    }
+        </script>
+    </body>
+</html>
+
                 } catch (e) { }
             }
 
