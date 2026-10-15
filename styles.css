@@ -13,8 +13,8 @@
     box-sizing: border-box;
     margin: 0;
     padding: 0;
-    font-family: 'Segoe UI', -apple-system, sans-serif;
-    user-select: none;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    -webkit-tap-highlight-color: transparent;
 }
 
 body {
@@ -27,23 +27,22 @@ body {
 .view {
     display: flex;
     flex-direction: column;
-    height: 100%; /* Wichtig für das Flex-Layout */
+    height: 100%;
 }
 
 .hidden {
     display: none !important;
 }
 
-/* Header */
 header {
     background-color: var(--panel-dark);
     padding: 15px;
     border-radius: 10px;
-    margin: 15px 15px 0 15px; /* Abstand oben/seiten */
+    margin: 15px 15px 0 15px;
     display: flex;
     flex-direction: column;
     gap: 10px;
-    flex-shrink: 0; /* Verhindert, dass der Header schrumpft */
+    flex-shrink: 0;
 }
 
 select {
@@ -61,7 +60,6 @@ select {
     gap: 10px;
 }
 
-/* Buttons */
 .btn {
     padding: 12px 20px;
     border: none;
@@ -96,11 +94,10 @@ select {
     padding: 16px;
 }
 
-/* Main-Bereich mit Tabelle */
 main {
-    flex-grow: 1; /* Nimmt den verfügbaren Platz ein */
-    overflow-y: hidden; /* Verhindert doppelte Scrollbalken */
-    padding: 15px 15px 0 15px;
+    flex-grow: 1;
+    overflow: hidden;
+    padding: 15px;
     display: flex;
 }
 
@@ -128,16 +125,15 @@ th {
     top: 0;
 }
 
-/* Footer */
 footer {
     margin: 15px;
     background-color: var(--panel-dark);
     padding: 15px;
     border-radius: 10px;
-    display: flex;
+    display: none; /* Wird per JS eingeblendet */
     flex-direction: column;
     gap: 10px;
-    flex-shrink: 0; /* Verhindert, dass der Footer schrumpft */
+    flex-shrink: 0;
 }
 
 .time-summary {
@@ -147,7 +143,73 @@ footer {
     font-weight: bold;
 }
 
-/* Vollbild-Timer */
 #training-view {
-    /* ... (Rest des CSS bleibt unverändert) ... */
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+}
+
+.training-container {
+    display: grid;
+    grid-template-rows: auto auto 1fr auto auto; /* Angepasste Struktur */
+    height: 100%;
+    width: 100%;
+    max-width: 500px;
+    padding: 20px;
+    gap: 15px;
+}
+
+#timer-step-name {
+    font-size: 28px;
+    font-weight: 900;
+}
+
+#timer-note {
+    font-size: 16px;
+    color: var(--orange);
+}
+
+#timer-countdown {
+    font-size: 10vh; /* Passt sich der Bildschirmhöhe an */
+    font-weight: 900;
+    font-variant-numeric: tabular-nums;
+    display: grid;
+    place-content: center;
+}
+
+.training-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+}
+
+.info-card {
+    background-color: var(--panel-dark);
+    padding: 12px;
+    border-radius: 10px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+    .info-card span {
+        font-size: 12px;
+        color: #a4b0be;
+    }
+
+    .info-card strong {
+        font-size: 16px;
+        margin-top: 5px;
+    }
+
+#timer-next-exercise {
+    background-color: rgba(255, 255, 255, 0.05);
+    padding: 15px;
+    border-radius: 8px;
+    font-weight: bold;
+}
+
+.timer-controls {
+    display: flex;
+    gap: 10px;
 }
