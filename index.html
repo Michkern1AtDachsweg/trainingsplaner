@@ -5,8 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Box- & Intervalltimer Pro</title>
     <link rel="manifest" href="manifest.json">
-    <!-- Excel-Parser Bibliothek (Sorgt für den stabilen Import) -->
-    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+    <!-- STABILE CLOUDFLARE BIBLIOTHEK: Beseitigt den "XLSX is not defined" Fehler endgültig! -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
     <style>
         :root {
@@ -494,6 +495,7 @@
             return `${m}:${sec}`;
         }
 
+        // Speichert Trainingspläne dauerhaft im Smartphone-Browser-Speicher
         function saveToStorage() {
             localStorage.setItem('trainingsplaene', JSON.stringify(allPlans));
         }
