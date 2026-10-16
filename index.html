@@ -382,7 +382,7 @@
             debugLog("Event-Listener registriert.");
         }
 
-        // *** FINALE, HOCHSTABILE EXCEL-LOGIK (Liest starr ab Zeile 3/Index 2 ein) ***
+        // *** FINALE, DYNAMISCHE EXCEL-ERFASSUNG ***
         function importExcelData(arrayBuffer) {
             debugLog("Starte Excel-Datenverarbeitung...");
             try {
@@ -402,26 +402,39 @@
 
                     debugLog("Zeilenanzahl im Blatt: " + jsonData.length);
                     const newPlan = { name: sheetName, steps: [] };
+                    let headerFound = false;
                     let parsedCount = 0;
 
-                    // KORREKTUR: Wir starten die Schleife fix bei rowIndex = 2 (Zeile 3 der Excel: "Laufen")
-                    // und entfernen alle blockierenden Header-Prüfungen!
-                    for (let rowIndex = 2; rowIndex < jsonData.length; rowIndex++) {
+                    // Wir durchsuchen das gesamte Blatt dynamisch ab Zeile 1
+                    for (let rowIndex = 0; rowIndex < jsonData.length; rowIndex++) {
                         const row = jsonData[rowIndex];
 
-                        // Überspringe Zeile, falls komplett leer
+                        // Wenn Zeile komplett leer ist, überspringen
                         if (!row || row.length < 1) continue;
 
+                        // Erkennung der Kopfzeile über Spalte B oder A (Dynamische Suche)
+                        const cellA = row[0] ? row[0].toString().toLowerCase() : "";
+                        const cellB = row[1] ? row[1].toString().toLowerCase() : "";
+                        if (!headerFound && (cellA.includes('zeit') || cellB.includes('zeit') || cellA.includes('wiederholung') || cellA.includes('pause'))) {
+                            headerFound = true;
+                            debugLog("Spalten-Header in Zeile " + (rowIndex + 1) + " gefunden.");
+                            continue;
+                        }
+
+                        // Ignoriere alle Zeilen (Titel etc.) BEVOR der Header gefunden wurde
+                        if (!headerFound) continue;
+
+                        // Abfrage der Spaltenwerte
                         const baseName = row[0] ? row[0].toString().trim() : "Unbenannte Phase";
                         const workMin = (row[1] !== undefined && row[1] !== null) ? parseFloat(String(row[1]).replace(',', '.')) : 0;
                         const repeats = (row[2] !== undefined && row[2] !== null) ? parseInt(row[2]) : 1;
                         const pauseMin = (row[3] !== undefined && row[3] !== null) ? parseFloat(String(row[3]).replace(',', '.')) : 0;
                         const note = row[5] ? row[5].toString().trim() : "";
 
-                        // Überspringe die Zeile, falls Name und Zeit komplett leer sind
+                        // Überspringe Zeile, falls Name und Zeit leer sind (Verhindert Müll-Importe am Dateiende)
                         if (baseName === "Unbenannte Phase" && workMin === 0) continue;
 
-                        debugLog("Zeile " + (rowIndex + 1) + " erfasst: " + baseName + " | Zeit: " + workMin + "m | Pause: " + pauseMin + "m");
+                        debugLog("Erfasst Zeile " + (rowIndex + 1) + ": " + baseName + " (" + workMin + "m, " + repeats + "x, Pause: " + pauseMin + "m)");
 
                         for (let r = 1; r <= repeats; r++) {
                             newPlan.steps.push({
@@ -456,7 +469,7 @@
                 saveToStorage();
                 updatePlanSelector();
 
-                // Wähle den ersten importierten Plan aus
+                // Ersten befüllten Plan auswählen und direkt anzeigen
                 const planNames = Object.keys(allPlans);
                 if (planNames.length > 0) {
                     const firstPlan = planNames[0];
