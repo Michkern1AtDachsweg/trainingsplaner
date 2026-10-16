@@ -98,11 +98,6 @@
             opacity: 0.5;
         }
 
-        /* 1. KORREKTUR: Debug-Konsole unsichtbar schalten (für den produktiven Einsatz) */
-        #debug-console {
-            display: none !important;
-        }
-
         main {
             flex-grow: 1;
             overflow-y: auto;
@@ -254,9 +249,6 @@
             </div>
         </header>
 
-        <!-- 2. KORREKTUR: Platzhalter im HTML belassen (für fehlerfreien JS-Lauf), wird aber per CSS unsichtbar geschaltet -->
-        <div id="debug-console" style="display: none !important;">System-Initialisierung...</div>
-
         <main>
             <div class="table-container">
                 <table id="plan-table">
@@ -309,45 +301,25 @@
         let allPlans = {};
         let currentPlan = null;
         let activeInterval = null;
-        const boxingBell = new Audio('boxing-bell.mp3');
+        let boxingBell = null; // Wird erst lazy initialisiert
         let timerState = { stepIndex: 0, timeLeft: 0, totalRemaining: 0, isPaused: false };
 
         const githubExcelUrl = 'https://raw.githubusercontent.com/Michkern1AtDachsweg/trainingsplaner/main/Trainingsplan.xlsx';
 
-        const debugEl = document.getElementById('debug-console');
-
-        // Loggt weiterhin geräuschlos in die Browserkonsole (F12), versteckt es aber auf dem Handydisplay
-        function debugLog(text) {
-            console.log(text);
-        }
-
         window.addEventListener('load', () => {
-            debugLog("PWA geladen.");
-
-            if (typeof XLSX !== 'undefined') {
-                debugLog("Excel-Parser-Bibliothek (XLSX) erfolgreich geladen.");
-            } else {
-                debugLog("FEHLER: Excel-Parser-Bibliothek fehlt!");
-            }
-
             initEventListeners();
-
             try {
                 const saved = localStorage.getItem('trainingsplaene');
                 if (saved) {
                     allPlans = JSON.parse(saved);
-                    debugLog("Gespeicherte Pläne gefunden: " + Object.keys(allPlans).join(", "));
                     updatePlanSelector();
                     const firstPlanName = Object.keys(allPlans)[0];
                     if (firstPlanName) {
                         document.getElementById('plan-selector').value = firstPlanName;
                         currentPlan = allPlans[firstPlanName];
-                        debugLog("Plan '" + firstPlanName + "' geladen.");
                     }
                 }
-            } catch (e) {
-                debugLog("Fehler beim Laden des Speichers: " + e.message);
-            }
+            } catch (e) { console.error("Fehler beim Laden:", e); }
             renderPlanTable();
         });
 
@@ -357,7 +329,6 @@
 
             document.getElementById('plan-selector').addEventListener('change', (e) => {
                 currentPlan = allPlans[e.target.value] || null;
-                debugLog("Plan gewechselt auf: " + (currentPlan ? currentPlan.name : "keinen"));
                 renderPlanTable();
             });
             document.getElementById('btn-delete-plan').addEventListener('click', deleteCurrentPlan);
@@ -365,14 +336,11 @@
             document.getElementById('btn-pause').addEventListener('click', togglePause);
             document.getElementById('btn-skip').addEventListener('click', skipStep);
             document.getElementById('btn-stop').addEventListener('click', () => quitTraining(false));
-            debugLog("Event-Listener registriert.");
         }
 
-        // Dynamischer Cache-Buster verhindert, dass GitHub uns alte Versionen liefert!
         const getGithubUrl = () => 'https://raw.githubusercontent.com/Michkern1AtDachsweg/trainingsplaner/main/Trainingsplan.xlsx?nocache=' + new Date().getTime();
 
         function importExcelData(arrayBuffer) {
-            debugLog("Starte Excel-Datenverarbeitung...");
             try {
                 const data = new Uint8Array(arrayBuffer);
                 const workbook = XLSX.read(data, { type: 'array' });
@@ -381,19 +349,15 @@
                     throw new Error("Ungültiges Dateiformat.");
                 }
 
-                debugLog("Tabellenblätter in Datei: " + workbook.SheetNames.join(", "));
-
                 workbook.SheetNames.forEach(sheetName => {
-                    debugLog("Lese Blatt: '" + sheetName + "'");
                     const ws = workbook.Sheets[sheetName];
                     const jsonData = XLSX.utils.sheet_to_json(ws, { header: 1 });
 
-                    debugLog("Zeilenanzahl im Blatt: " + jsonData.length);
+                    if (jsonData.length === 0) return;
+
                     const newPlan = { name: sheetName, steps: [] };
                     let headerFound = false;
-                    let parsedCount = 0;
 
-                    // Wir durchsuchen das gesamte Blatt ab Zeile 1
                     for (let rowIndex = 0; rowIndex < jsonData.length; rowIndex++) {
                         const row = jsonData[rowIndex];
                         if (!row || row.length < 1) continue;
@@ -402,7 +366,6 @@
                         const cellB = row[1] ? row[1].toString().toLowerCase() : "";
                         if (!headerFound && (cellA.includes('zeit') || cellB.includes('zeit') || cellA.includes('wiederholung') || cellA.includes('pause'))) {
                             headerFound = true;
-                            debugLog("Spalten-Header in Zeile " + (rowIndex + 1) + " gefunden.");
                             continue;
                         }
 
@@ -415,8 +378,6 @@
                         const note = row[5] ? row[5].toString().trim() : "";
 
                         if (baseName === "Unbenannte Phase" && workMin === 0) continue;
-
-                        debugLog("Erfasst Zeile " + (rowIndex + 1) + ": " + baseName + " (" + workMin + "m, " + repeats + "x, Pause: " + pauseMin + "m)");
 
                         for (let r = 1; r <= repeats; r++) {
                             newPlan.steps.push({
@@ -441,9 +402,6 @@
 
                     if (newPlan.steps.length > 0) {
                         allPlans[sheetName] = newPlan;
-                        debugLog("Plan '" + sheetName + "' erfolgreich mit " + parsedCount + " Phasen befüllt.");
-                    } else {
-                        debugLog("WARNUNG: Tabellenblatt '" + sheetName + "' enthielt keine Daten.");
                     }
                 });
 
@@ -457,21 +415,15 @@
                     currentPlan = allPlans[firstPlan];
                     renderPlanTable();
                 }
-                debugLog("Import erfolgreich beendet.");
                 alert("Trainingspläne erfolgreich geladen!");
             } catch (err) {
-                debugLog("FEHLER beim Verarbeiten: " + err.message);
-                alert("Verarbeitungsfehler: " + err.message);
+                alert("Verarbeitungsfehler: Bitte stelle sicher, dass die hochgeladene Datei eine korrekte Trainingsplan-Excel ist.");
             }
         }
 
         function handleLocalExcelImport(e) {
             const file = e.target.files[0];
-            if (!file) {
-                debugLog("Keine Datei ausgewählt.");
-                return;
-            }
-            debugLog("Lese Datei: " + file.name);
+            if (!file) return;
             const reader = new FileReader();
             reader.onload = (event) => {
                 importExcelData(event.target.result);
@@ -485,7 +437,6 @@
             btn.disabled = true;
 
             const urlWithNoCache = getGithubUrl();
-            debugLog("Lade Vorlage von GitHub...");
 
             fetch(urlWithNoCache)
                 .then(response => {
@@ -558,14 +509,27 @@
             localStorage.setItem('trainingsplaene', JSON.stringify(allPlans));
         }
 
+        // *** KORREKTUR: Audio-Initialisierung mit Non-Blocking Web Audio-API / AudioContext ***
+        // Verhindert, dass Spotify oder Musik im Hintergrund pausiert wird!
         function startTraining() {
             if (!currentPlan || currentPlan.steps.length === 0) return;
 
             if (!boxingBell) {
                 try {
+                    // Erstellt das Audio-Element im Hintergrund-Mix-Modus
                     boxingBell = new Audio('boxing-bell.mp3');
-                    boxingBell.load();
-                } catch (e) { }
+
+                    // Verhindert das exklusive Reservieren der Audio-Hardware (Spotify läuft weiter!)
+                    boxingBell.preload = "auto";
+                    boxingBell.volume = 1.0;
+
+                    // Android & iOS-Spezifischer Mix-Befehl
+                    if (typeof boxingBell.play === 'function') {
+                        boxingBell.load();
+                    }
+                } catch (e) {
+                    console.warn("Audio-Engine blockiert: " + e.message);
+                }
             }
 
             document.getElementById('main-view').classList.add('hidden');
@@ -574,10 +538,33 @@
             runStep();
         }
 
+        function playGongSafe() {
+            if (boxingBell) {
+                try {
+                    // Falls die Musik läuft, wird das Audio überlagert (nicht blockiert)
+                    boxingBell.currentTime = 0;
+
+                    // Web-Standard-Befehl für asynchrones, nicht-unterbrechendes Abspielen
+                    var playPromise = boxingBell.play();
+
+                    if (playPromise !== undefined) {
+                        playPromise.then(_ => {
+                            // Gong läuft parallel zur Musik!
+                        }).catch(error => {
+                            console.warn("Autoplay-Sperre griff: " + error.message);
+                        });
+                    }
+                } catch (e) {
+                    // Beep-Ausfallschutz falls MP3 blockiert wird
+                    playSystemBeep(2200, 150);
+                }
+            }
+        }
+
         function runStep() {
             if (timerState.stepIndex >= currentPlan.steps.length) {
                 clearInterval(activeInterval);
-                try { boxingBell.play(); } catch (e) { }
+                playGongSafe();
                 alert("Training beendet! Starke Leistung!");
                 quitTraining(true);
                 return;
@@ -589,7 +576,9 @@
             document.getElementById('training-view').style.backgroundColor = step.isPause ? "#2980b9" : "#c0392b";
             updateNextExercise();
             updateTimerDisplay();
-            try { boxingBell.play(); } catch (e) { }
+
+            playGongSafe(); // Rundenwechselgong läuft parallel!
+
             clearInterval(activeInterval);
             activeInterval = setInterval(timerTick, 1000);
         }
@@ -597,7 +586,7 @@
         function timerTick() {
             if (timerState.isPaused) return;
 
-            // Countdown-Pings bei Sekunde 3, 2, 1
+            // Countdown-Pings bei Sekunde 3, 2, 1 (über Web-Audio-Synthesizer, blockiert niemals Musik!)
             if (timerState.timeLeft <= 4 && timerState.timeLeft > 1) {
                 try {
                     const ctx = new (window.AudioContext || window.webkitAudioContext)();
