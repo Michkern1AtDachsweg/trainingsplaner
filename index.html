@@ -264,7 +264,7 @@
             </div>
         </header>
 
-        <!-- VISUELLE DEBUG-KONSOLE AUF DEM BILDSCHIRM -->
+        <!-- VISUELLE DEBUG-KONSOLE -->
         <div id="debug-console">System-Initialisierung...</div>
 
         <main>
@@ -324,17 +324,15 @@
 
         const debugEl = document.getElementById('debug-console');
 
-        // Funktion zum Loggen in das Bildschirm-Fenster
         function debugLog(text) {
             console.log(text);
             debugEl.innerHTML += "<br>> " + text;
-            debugEl.scrollTop = debugEl.scrollHeight; // Auto-Scroll nach unten
+            debugEl.scrollTop = debugEl.scrollHeight;
         }
 
         window.addEventListener('load', () => {
             debugLog("PWA geladen.");
 
-            // Überprüfe ob XLSX-Bibliothek da ist
             if (typeof XLSX !== 'undefined') {
                 debugLog("Excel-Bibliothek (XLSX) erfolgreich geladen.");
             } else {
@@ -347,7 +345,7 @@
                 const saved = localStorage.getItem('trainingsplaene');
                 if (saved) {
                     allPlans = JSON.parse(saved);
-                    debugLog("Gespeicherte Pläne im Speicher gefunden: " + Object.keys(allPlans).join(", "));
+                    debugLog("Gespeicherte Pläne gefunden: " + Object.keys(allPlans).join(", "));
                     updatePlanSelector();
                     const firstPlanName = Object.keys(allPlans)[0];
                     if (firstPlanName) {
@@ -356,7 +354,7 @@
                         debugLog("Plan '" + firstPlanName + "' geladen.");
                     }
                 } else {
-                    debugLog("Keine Trainingspläne im Speicher vorhanden.");
+                    debugLog("Keine Pläne im lokalen Speicher.");
                 }
             } catch (e) {
                 debugLog("Fehler beim Laden des Speichers: " + e.message);
@@ -380,6 +378,7 @@
             debugLog("Event-Listener registriert.");
         }
 
+        // *** KORRIGIERT: Sichere Schleifenerfassung (Deklariert 'row' korrekt) ***
         function importExcelData(arrayBuffer) {
             debugLog("Starte Excel-Datenverarbeitung...");
             try {
@@ -390,24 +389,26 @@
                     throw new Error("Ungültiges Excel-Dateiformat.");
                 }
 
-                debugLog("Gefundene Tabellenblätter: " + workbook.SheetNames.join(", "));
+                debugLog("Gefundene Blätter: " + workbook.SheetNames.join(", "));
 
                 workbook.SheetNames.forEach(sheetName => {
                     debugLog("Verarbeite Blatt: '" + sheetName + "'");
                     const ws = workbook.Sheets[sheetName];
                     const jsonData = XLSX.utils.sheet_to_json(ws, { header: 1 });
 
-                    debugLog("Gelesene Zeilen im Blatt: " + jsonData.length);
+                    debugLog("Zeilenanzahl: " + jsonData.length);
                     const newPlan = { name: sheetName, steps: [] };
                     let headerFound = false;
                     let parsedCount = 0;
 
-                    for (let rowIndex = 0; row = jsonData[rowIndex]; rowIndex++) {
+                    // KORREKTUR: Deklariert 'row' explizit lokal, um den SyntaxError zu beheben!
+                    for (let rowIndex = 0; rowIndex < jsonData.length; rowIndex++) {
+                        const row = jsonData[rowIndex];
                         if (!row || !row[0]) continue;
 
                         if (!headerFound && row[0].toString().toLowerCase().includes('zeit')) {
                             headerFound = true;
-                            debugLog("Spalten-Header in Zeile " + (rowIndex + 1) + " identifiziert.");
+                            debugLog("Header in Zeile " + (rowIndex + 1) + " gefunden.");
                             continue;
                         }
                         if (!headerFound) continue;
@@ -419,7 +420,7 @@
                         const parsedRepeats = parseInt(repeats) || 1;
                         const parsedPauseMin = parseFloat(String(pauseMin).replace(',', '.')) || 0;
 
-                        debugLog("Zuweisung Zeile " + (rowIndex + 1) + ": '" + baseName + "' | " + parsedWorkMin + " Min | " + parsedRepeats + "x | Pause: " + parsedPauseMin + " Min.");
+                        debugLog("Gelesen Zeile " + (rowIndex + 1) + ": " + baseName);
 
                         for (let r = 1; r <= parsedRepeats; r++) {
                             newPlan.steps.push({
@@ -443,7 +444,7 @@
                         allPlans[sheetName] = newPlan;
                         debugLog("Plan '" + sheetName + "' erfolgreich mit " + parsedCount + " Phasen befüllt.");
                     } else {
-                        debugLog("WARNUNG: Blatt '" + sheetName + "' enthielt keine gültigen Übungen.");
+                        debugLog("WARNUNG: Blatt '" + sheetName + "' war leer.");
                     }
                 });
 
@@ -456,10 +457,10 @@
                     currentPlan = allPlans[lastPlanName];
                     renderPlanTable();
                 }
-                debugLog("Importvorgang komplett abgeschlossen.");
+                debugLog("Import erfolgreich beendet.");
                 alert("Trainingspläne erfolgreich geladen!");
             } catch (err) {
-                debugLog("IMPORT-ABBRUCH: " + err.message);
+                debugLog("FEHLER beim Import: " + err.message);
                 alert("Verarbeitungsfehler: " + err.message);
             }
         }
@@ -467,10 +468,10 @@
         function handleExcelImport(e) {
             const file = e.target.files[0];
             if (!file) {
-                debugLog("Keine Datei im Dialog ausgewählt.");
+                debugLog("Keine Datei ausgewählt.");
                 return;
             }
-            debugLog("Datei ausgewählt: " + file.name + " (" + file.size + " Bytes)");
+            debugLog("Lese Datei: " + file.name);
             const reader = new FileReader();
             reader.onload = (event) => {
                 importExcelData(event.target.result);
