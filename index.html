@@ -5,9 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Box- & Intervalltimer Pro</title>
     <link rel="manifest" href="manifest.json">
-
-    <!-- STABILE CLOUDFLARE BIBLIOTHEK: Behebt den Absturzfehler "XLSX is not defined" endgültig auf jedem Smartphone! -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <!-- Excel-Parser Bibliothek -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
     <style>
         :root {
@@ -19,8 +18,8 @@
             --red: #e84118;
             --orange: #fbc531;
             --blue: #00a8ff;
-            /* Sicherheitsabstand für die Handy-Navigationsleiste */
-            --safe-area-inset-bottom: env(safe-area-inset-bottom, 35px);
+            /* Extra dicker Sicherheitsabstand für die Handy-Leiste unten */
+            --safe-area-bottom: env(safe-area-inset-bottom, 30px);
         }
 
         body, html {
@@ -47,48 +46,34 @@
 
         header {
             padding: 15px;
-            margin: 15px 15px 0 15px;
             background-color: var(--panel-dark);
-            border-radius: 10px;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
             flex-shrink: 0;
+            margin: 10px 10px 0 10px;
+            border-radius: 8px;
         }
 
-        select {
+        select, .btn {
             width: 100%;
             padding: 12px;
-            background-color: var(--bg-dark);
-            color: var(--text-light);
-            border: 1px solid var(--text-muted);
             border-radius: 8px;
             font-size: 16px;
+            border: 1px solid #576574;
+            background-color: var(--bg-dark);
+            color: var(--text-light);
         }
 
         .header-buttons {
             display: flex;
             gap: 10px;
+            margin-top: 10px;
         }
 
         .btn {
-            padding: 12px 20px;
             border: none;
-            border-radius: 8px;
-            color: white;
             font-weight: bold;
-            font-size: 14px;
             cursor: pointer;
-            text-align: center;
             flex: 1;
-        }
-
-        .btn-green {
-            background-color: var(--green);
-        }
-
-        .btn-red {
-            background-color: var(--red);
+            text-align: center;
         }
 
         .btn-orange {
@@ -96,13 +81,16 @@
             color: #1e272e;
         }
 
-        .btn-blue {
-            background-color: var(--blue);
+        .btn-red {
+            background-color: var(--red);
         }
 
-        .btn-large {
-            font-size: 18px;
-            padding: 16px;
+        .btn-green {
+            background-color: var(--green);
+        }
+
+        .btn-blue {
+            background-color: var(--blue);
         }
 
         #btn-start-training:disabled {
@@ -113,16 +101,15 @@
 
         main {
             flex-grow: 1;
-            overflow: hidden;
+            overflow-y: auto;
             padding: 15px;
-            display: flex;
         }
 
         .table-container {
             width: 100%;
-            overflow-y: auto;
             background-color: var(--panel-dark);
             border-radius: 10px;
+            overflow-x: auto;
         }
 
         table {
@@ -142,28 +129,28 @@
             top: 0;
         }
 
-        /* Drückt die Startleiste weit nach oben, schützt vor der Handyleiste */
+        /* KORREKTUR: Hebt die Leiste mit "TRAINING STARTEN" massiv an, damit sie auf Handys nie verdeckt wird */
         footer {
-            margin: 15px;
-            background-color: var(--panel-dark);
             padding: 15px;
-            border-radius: 10px;
+            padding-bottom: calc(55px + var(--safe-area-bottom)) !important; /* Dicker Schutzabstand */
+            background-color: var(--panel-dark);
+            flex-shrink: 0;
             display: flex;
             flex-direction: column;
             gap: 10px;
-            flex-shrink: 0;
-            /* Erhöhter Sicherheitsabstand für den "Training starten" Button */
-            padding-bottom: calc(55px + var(--safe-area-inset-bottom)) !important;
+            margin: 0 10px 10px 10px;
+            border-radius: 8px;
         }
 
         .time-summary {
             display: flex;
             justify-content: space-between;
-            font-size: 16px;
             font-weight: bold;
         }
 
-        /* Zentrierter Trainingsmodus */
+        /* ==========================================================
+           TRAININGS-VIEW (PERFEKT ZENTRIERT FÜR SMARTPHONES)
+           ========================================================== */
         #training-view {
             display: flex !important;
             justify-content: center !important;
@@ -182,13 +169,13 @@
             max-width: 500px;
             height: 100%;
             padding: 20px;
-            /* Erhöhter Sicherheitsabstand für die Timer-Steuerungen im Training */
-            padding-bottom: calc(60px + var(--safe-area-inset-bottom)) !important;
+            padding-bottom: calc(60px + var(--safe-area-bottom)) !important;
         }
 
         #timer-step-name {
             font-size: 28px;
             font-weight: 900;
+            text-transform: uppercase;
         }
 
         #timer-note {
@@ -197,10 +184,10 @@
         }
 
         #timer-countdown {
-            font-size: clamp(80px, 15vh, 120px);
+            font-size: clamp(80px, 15vh, 130px);
             font-weight: 900;
             font-variant-numeric: tabular-nums;
-            margin: 10px 0;
+            margin: 15px 0;
         }
 
         .training-grid {
@@ -211,27 +198,28 @@
         }
 
         .info-card {
-            background-color: #1e272e;
-            padding: 15px;
-            border-radius: 10px;
+            background-color: var(--panel-dark);
+            padding: 12px;
+            border-radius: 8px;
             display: flex;
             flex-direction: column;
+            align-items: center;
             justify-content: center;
-            gap: 5px;
         }
 
             .info-card span {
-                font-size: 12px;
+                font-size: 11px;
                 color: #a4b0be;
             }
 
             .info-card strong {
-                font-size: 18px;
+                font-size: 15px;
+                margin-top: 3px;
             }
 
         #timer-next-exercise {
-            background-color: rgba(255, 255, 255, 0.05);
-            padding: 15px;
+            background-color: rgba(255,255,255,0.05);
+            padding: 12px;
             border-radius: 8px;
             font-weight: bold;
             font-size: 15px;
@@ -259,7 +247,7 @@
                 <option value="">-- Pläne laden... --</option>
             </select>
             <div class="header-buttons">
-                <button id="btn-load-github" class="btn btn-blue">🌐 Vorlage laden</button>
+                <!-- Nur noch der stabile manuelle Lade-Button vorhanden -->
                 <label class="btn btn-orange" for="excel-input">📥 Excel Laden</label>
                 <input type="file" id="excel-input" accept=".xlsx" style="display:none;">
                 <button id="btn-delete-plan" class="btn btn-red">🗑️ Löschen</button>
@@ -315,14 +303,12 @@
     </div>
 
     <script>
-        // *** HIER IST DEIN ORIGINALE, BEWÄHRTE CODE-FLUSS ***
+        // *** DIES IST DER REINE ORIGINAL-CODE (OHNE GITHUB-MÜLL) ***
         let allPlans = {};
         let currentPlan = null;
         let activeInterval = null;
         const boxingBell = new Audio('boxing-bell.mp3');
         let timerState = { stepIndex: 0, timeLeft: 0, totalRemaining: 0, isPaused: false };
-
-        const githubExcelUrl = 'https://raw.githubusercontent.com/Michkern1AtDachsweg/trainingsplaner/main/Trainingsplan.xlsx';
 
         window.addEventListener('load', () => {
             initEventListeners();
@@ -343,7 +329,6 @@
 
         function initEventListeners() {
             document.getElementById('excel-input').addEventListener('change', handleExcelImport);
-            document.getElementById('btn-load-github').addEventListener('click', loadExcelFromGithub);
 
             document.getElementById('plan-selector').addEventListener('change', (e) => {
                 currentPlan = allPlans[e.target.value] || null;
@@ -356,7 +341,7 @@
             document.getElementById('btn-stop').addEventListener('click', () => quitTraining(false));
         }
 
-        // Importiert Excel-Daten aus dem Array-Buffer
+        // Der originale Excel-Parser, der bei dir zu 100% funktioniert hat!
         function importExcelData(arrayBuffer) {
             try {
                 const data = new Uint8Array(arrayBuffer);
@@ -377,7 +362,10 @@
                         if (!headerFound && row[0].toString().toLowerCase().includes('zeit')) { headerFound = true; continue; }
                         if (!headerFound) continue;
 
+                        // Dein originaler Einlese-Befehl!
                         const [baseName, workMin, repeats, pauseMin, , note] = row;
+                        if (!baseName) continue;
+
                         const parsedWorkMin = parseFloat(String(workMin).replace(',', '.')) || 0;
                         const parsedRepeats = parseInt(repeats) || 1;
                         const parsedPauseMin = parseFloat(String(pauseMin).replace(',', '.')) || 0;
@@ -417,29 +405,6 @@
             }
         }
 
-        // Lädt die Excel-Datei live direkt von GitHub herunter
-        function loadExcelFromGithub() {
-            const btn = document.getElementById('btn-load-github');
-            btn.textContent = "⌛ Lädt...";
-            btn.disabled = true;
-
-            fetch(githubExcelUrl)
-                .then(response => {
-                    if (!response.ok) throw new Error("Verbindungsfehler zu GitHub. Status: " + response.status);
-                    return response.arrayBuffer();
-                })
-                .then(arrayBuffer => {
-                    importExcelData(arrayBuffer);
-                    btn.textContent = "🌐 Vorlage laden";
-                    btn.disabled = false;
-                })
-                .catch(err => {
-                    alert("Import fehlgeschlagen: " + err.message + "\nBitte vergewissere dich, dass 'Trainingsplan.xlsx' im GitHub liegt.");
-                    btn.textContent = "🌐 Vorlage laden";
-                    btn.disabled = false;
-                });
-        }
-
         function handleExcelImport(e) {
             const file = e.target.files[0];
             if (!file) return;
@@ -451,15 +416,13 @@
         }
 
         function deleteCurrentPlan() {
-            if (!currentPlan) return;
-            if (confirm(`Soll der Plan "${currentPlan.name}" wirklich gelöscht werden?`)) {
-                delete allPlans[currentPlan.name];
-                currentPlan = null;
-                document.getElementById('plan-selector').value = "";
-                saveToStorage();
-                updatePlanSelector();
-                renderPlanTable();
-            }
+            if (!currentPlan || !confirm(`Soll der Plan "${currentPlan.name}" wirklich gelöscht werden?`)) return;
+            delete allPlans[currentPlan.name];
+            currentPlan = null;
+            document.getElementById('plan-selector').value = "";
+            saveToStorage();
+            updatePlanSelector();
+            renderPlanTable();
         }
 
         function updatePlanSelector() {
@@ -574,6 +537,7 @@
             document.getElementById('timer-end-time-active').textContent = `${end.getHours().toString().padStart(2, '0')}:${end.getMinutes().toString().padStart(2, '0')}`;
         }
 
+        // Zeigt immer die übernächste Übung an, die keine Pause ist
         function updateNextExercise() {
             const next = currentPlan.steps.slice(timerState.stepIndex + 1).find(s => !s.isPause);
             document.getElementById('timer-next-exercise').textContent = next ? `NÄCHSTE ÜBUNG: ${next.name}` : "LETZTE RUNDE! GIB ALLES!";
