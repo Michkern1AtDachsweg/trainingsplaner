@@ -6,7 +6,7 @@
     <title>Box- & Intervalltimer Pro</title>
     <link rel="manifest" href="manifest.json">
     <!-- Excel-Parser Bibliothek -->
-    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
     <style>
         :root {
@@ -18,7 +18,6 @@
             --red: #e84118;
             --orange: #fbc531;
             --blue: #00a8ff;
-            /* Zwingt einen extra dicken Sicherheitsabstand für Handyleisten unten */
             --safe-area-bottom: env(safe-area-inset-bottom, 35px);
         }
 
@@ -99,6 +98,22 @@
             opacity: 0.5;
         }
 
+        /* Styles für die visuelle Debug-Konsole */
+        #debug-console {
+            background-color: #000000;
+            color: #00ff00;
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 11px;
+            padding: 10px;
+            margin: 5px 10px 0 10px;
+            border-radius: 5px;
+            max-height: 100px;
+            overflow-y: auto;
+            border: 1px solid #333;
+            text-align: left;
+            flex-shrink: 0;
+        }
+
         main {
             flex-grow: 1;
             overflow-y: auto;
@@ -129,10 +144,9 @@
             top: 0;
         }
 
-        /* Drückt die Startleiste weit nach oben, schützt vor der Handyleiste */
         footer {
             padding: 15px;
-            padding-bottom: calc(55px + var(--safe-area-bottom)) !important; /* Dicker Schutzabstand */
+            padding-bottom: calc(55px + var(--safe-area-bottom)) !important;
             background-color: var(--panel-dark);
             flex-shrink: 0;
             display: flex;
@@ -148,7 +162,6 @@
             font-weight: bold;
         }
 
-        /* Zentrierter Timer-Bildschirm */
         #training-view {
             display: flex !important;
             justify-content: center !important;
@@ -245,12 +258,14 @@
                 <option value="">-- Pläne laden... --</option>
             </select>
             <div class="header-buttons">
-                <!-- Zurück auf deinen fehlerfreien Ursprungszustand (Nur eigener Excel-Upload) -->
                 <label class="btn btn-orange" for="excel-input">📥 Excel Laden</label>
                 <input type="file" id="excel-input" accept=".xlsx" style="display:none;">
                 <button id="btn-delete-plan" class="btn btn-red">🗑️ Löschen</button>
             </div>
         </header>
+
+        <!-- VISUELLE DEBUG-KONSOLE AUF DEM BILDSCHIRM -->
+        <div id="debug-console">System-Initialisierung...</div>
 
         <main>
             <div class="table-container">
@@ -277,7 +292,7 @@
         </footer>
     </div>
 
-    <!-- TRAININGS-MODUS (Vollbild-Timer) -->
+    <!-- TRAININGS-MODUS -->
     <div id="training-view" class="view hidden">
         <div class="training-container">
             <h1 id="timer-step-name">LAUFEN</h1>
@@ -307,20 +322,45 @@
         const boxingBell = new Audio('boxing-bell.mp3');
         let timerState = { stepIndex: 0, timeLeft: 0, totalRemaining: 0, isPaused: false };
 
+        const debugEl = document.getElementById('debug-console');
+
+        // Funktion zum Loggen in das Bildschirm-Fenster
+        function debugLog(text) {
+            console.log(text);
+            debugEl.innerHTML += "<br>> " + text;
+            debugEl.scrollTop = debugEl.scrollHeight; // Auto-Scroll nach unten
+        }
+
         window.addEventListener('load', () => {
+            debugLog("PWA geladen.");
+
+            // Überprüfe ob XLSX-Bibliothek da ist
+            if (typeof XLSX !== 'undefined') {
+                debugLog("Excel-Bibliothek (XLSX) erfolgreich geladen.");
+            } else {
+                debugLog("FEHLER: Excel-Bibliothek (XLSX) fehlt!");
+            }
+
             initEventListeners();
+
             try {
                 const saved = localStorage.getItem('trainingsplaene');
                 if (saved) {
                     allPlans = JSON.parse(saved);
+                    debugLog("Gespeicherte Pläne im Speicher gefunden: " + Object.keys(allPlans).join(", "));
                     updatePlanSelector();
                     const firstPlanName = Object.keys(allPlans)[0];
                     if (firstPlanName) {
                         document.getElementById('plan-selector').value = firstPlanName;
                         currentPlan = allPlans[firstPlanName];
+                        debugLog("Plan '" + firstPlanName + "' geladen.");
                     }
+                } else {
+                    debugLog("Keine Trainingspläne im Speicher vorhanden.");
                 }
-            } catch (e) { console.error("Fehler beim Laden:", e); }
+            } catch (e) {
+                debugLog("Fehler beim Laden des Speichers: " + e.message);
+            }
             renderPlanTable();
         });
 
@@ -329,6 +369,7 @@
 
             document.getElementById('plan-selector').addEventListener('change', (e) => {
                 currentPlan = allPlans[e.target.value] || null;
+                debugLog("Plan gewechselt auf: " + (currentPlan ? currentPlan.name : "keinen"));
                 renderPlanTable();
             });
             document.getElementById('btn-delete-plan').addEventListener('click', deleteCurrentPlan);
@@ -336,30 +377,41 @@
             document.getElementById('btn-pause').addEventListener('click', togglePause);
             document.getElementById('btn-skip').addEventListener('click', skipStep);
             document.getElementById('btn-stop').addEventListener('click', () => quitTraining(false));
+            debugLog("Event-Listener registriert.");
         }
 
-        // Der originale Excel-Parser, der bei dir zu 100% funktioniert hat!
         function importExcelData(arrayBuffer) {
+            debugLog("Starte Excel-Datenverarbeitung...");
             try {
                 const data = new Uint8Array(arrayBuffer);
                 const workbook = XLSX.read(data, { type: 'array' });
 
                 if (!workbook || !workbook.SheetNames.length) {
-                    throw new Error("Ungültiges Excel-Format.");
+                    throw new Error("Ungültiges Excel-Dateiformat.");
                 }
 
+                debugLog("Gefundene Tabellenblätter: " + workbook.SheetNames.join(", "));
+
                 workbook.SheetNames.forEach(sheetName => {
+                    debugLog("Verarbeite Blatt: '" + sheetName + "'");
                     const ws = workbook.Sheets[sheetName];
                     const jsonData = XLSX.utils.sheet_to_json(ws, { header: 1 });
+
+                    debugLog("Gelesene Zeilen im Blatt: " + jsonData.length);
                     const newPlan = { name: sheetName, steps: [] };
                     let headerFound = false;
+                    let parsedCount = 0;
 
-                    for (const row of jsonData) {
+                    for (let rowIndex = 0; row = jsonData[rowIndex]; rowIndex++) {
                         if (!row || !row[0]) continue;
-                        if (!headerFound && row[0].toString().toLowerCase().includes('zeit')) { headerFound = true; continue; }
+
+                        if (!headerFound && row[0].toString().toLowerCase().includes('zeit')) {
+                            headerFound = true;
+                            debugLog("Spalten-Header in Zeile " + (rowIndex + 1) + " identifiziert.");
+                            continue;
+                        }
                         if (!headerFound) continue;
 
-                        // Dein originaler Einlese-Befehl!
                         const [baseName, workMin, repeats, pauseMin, , note] = row;
                         if (!baseName) continue;
 
@@ -367,9 +419,11 @@
                         const parsedRepeats = parseInt(repeats) || 1;
                         const parsedPauseMin = parseFloat(String(pauseMin).replace(',', '.')) || 0;
 
+                        debugLog("Zuweisung Zeile " + (rowIndex + 1) + ": '" + baseName + "' | " + parsedWorkMin + " Min | " + parsedRepeats + "x | Pause: " + parsedPauseMin + " Min.");
+
                         for (let r = 1; r <= parsedRepeats; r++) {
                             newPlan.steps.push({
-                                name: `${baseName}${parsedRepeats > 1 ? ` (Runde ${r}/${parsedRepeats})` : ''}`,
+                                name: baseName + (parsedRepeats > 1 ? " (Runde " + r + "/" + parsedRepeats + ")" : ""),
                                 duration: parsedWorkMin * 60,
                                 isPause: false,
                                 note: note || ""
@@ -379,12 +433,18 @@
                                     name: "Pause",
                                     duration: parsedPauseMin * 60,
                                     isPause: true,
-                                    note: `Nächste Übung: ${baseName}`
+                                    note: "Nächste Übung: " + baseName
                                 });
                             }
+                            parsedCount++;
                         }
                     }
-                    if (newPlan.steps.length > 0) allPlans[sheetName] = newPlan;
+                    if (newPlan.steps.length > 0) {
+                        allPlans[sheetName] = newPlan;
+                        debugLog("Plan '" + sheetName + "' erfolgreich mit " + parsedCount + " Phasen befüllt.");
+                    } else {
+                        debugLog("WARNUNG: Blatt '" + sheetName + "' enthielt keine gültigen Übungen.");
+                    }
                 });
 
                 saveToStorage();
@@ -396,15 +456,21 @@
                     currentPlan = allPlans[lastPlanName];
                     renderPlanTable();
                 }
+                debugLog("Importvorgang komplett abgeschlossen.");
                 alert("Trainingspläne erfolgreich geladen!");
             } catch (err) {
-                alert("Verarbeitungsfehler: Bitte stelle sicher, dass die hochgeladene Datei eine korrekte Trainingsplan-Excel ist.");
+                debugLog("IMPORT-ABBRUCH: " + err.message);
+                alert("Verarbeitungsfehler: " + err.message);
             }
         }
 
         function handleExcelImport(e) {
             const file = e.target.files[0];
-            if (!file) return;
+            if (!file) {
+                debugLog("Keine Datei im Dialog ausgewählt.");
+                return;
+            }
+            debugLog("Datei ausgewählt: " + file.name + " (" + file.size + " Bytes)");
             const reader = new FileReader();
             reader.onload = (event) => {
                 importExcelData(event.target.result);
@@ -413,7 +479,8 @@
         }
 
         function deleteCurrentPlan() {
-            if (!currentPlan || !confirm(`Soll der Plan "${currentPlan.name}" wirklich gelöscht werden?`)) return;
+            if (!currentPlan || !confirm("Soll der Plan '" + currentPlan.name + "' wirklich gelöscht werden?")) return;
+            debugLog("Lösche Plan: " + currentPlan.name);
             delete allPlans[currentPlan.name];
             currentPlan = null;
             document.getElementById('plan-selector').value = "";
@@ -446,7 +513,7 @@
             currentPlan.steps.forEach(step => {
                 const tr = document.createElement('tr');
                 if (step.isPause) tr.style.backgroundColor = "rgba(41, 128, 185, 0.15)";
-                tr.innerHTML = "<td>" + step.name + "</td><td>" + formatTime(step.duration) + "</td><td>" + (step.isPause ? '✔️' : '❌') + "</td><td>" + (step.note || "") + "</td>";
+                tr.innerHTML = "<td>" + step.name + "</td><td>" + formatTime(step.duration) + "</td><td>" + (step.isPause ? "✔️" : "❌") + "</td><td>" + (step.note || "") + "</td>";
                 tableBody.appendChild(tr);
             });
             document.getElementById('lbl-total-time').textContent = "Gesamtdauer: " + formatTime(totalSeconds);
@@ -466,14 +533,12 @@
 
         function startTraining() {
             if (!currentPlan || currentPlan.steps.length === 0) return;
-
             if (!boxingBell) {
                 try {
                     boxingBell = new Audio('boxing-bell.mp3');
                     boxingBell.load();
                 } catch (e) { }
             }
-
             document.getElementById('main-view').classList.add('hidden');
             document.getElementById('training-view').classList.remove('hidden');
             timerState = { stepIndex: 0, isPaused: false, totalRemaining: currentPlan.steps.reduce((acc, s) => acc + s.duration, 0) };
@@ -539,7 +604,6 @@
             document.getElementById('timer-next-exercise').textContent = next ? "NÄCHSTE ÜBUNG: " + next.name : "LETZTE RUNDE! GIB ALLES!";
         }
 
-        // Pause/Fortsetzen steuern
         function togglePause() {
             timerState.isPaused = !timerState.isPaused;
             document.getElementById('btn-pause').textContent = timerState.isPaused ? "▶️ FORTSETZEN" : "⏸️ PAUSE";
