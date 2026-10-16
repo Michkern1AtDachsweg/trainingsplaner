@@ -98,20 +98,9 @@
             opacity: 0.5;
         }
 
-        /* Styles für die visuelle Debug-Konsole */
+        /* 1. KORREKTUR: Debug-Konsole unsichtbar schalten (für den produktiven Einsatz) */
         #debug-console {
-            background-color: #000000;
-            color: #00ff00;
-            font-family: 'Consolas', 'Courier New', monospace;
-            font-size: 11px;
-            padding: 10px;
-            margin: 5px 10px 0 10px;
-            border-radius: 5px;
-            max-height: 100px;
-            overflow-y: auto;
-            border: 1px solid #333;
-            text-align: left;
-            flex-shrink: 0;
+            display: none !important;
         }
 
         main {
@@ -265,8 +254,8 @@
             </div>
         </header>
 
-        <!-- VISUELLE DEBUG-KONSOLE -->
-        <div id="debug-console">System-Initialisierung...</div>
+        <!-- 2. KORREKTUR: Platzhalter im HTML belassen (für fehlerfreien JS-Lauf), wird aber per CSS unsichtbar geschaltet -->
+        <div id="debug-console" style="display: none !important;">System-Initialisierung...</div>
 
         <main>
             <div class="table-container">
@@ -323,15 +312,13 @@
         const boxingBell = new Audio('boxing-bell.mp3');
         let timerState = { stepIndex: 0, timeLeft: 0, totalRemaining: 0, isPaused: false };
 
-        // KORREKTUR: Dynamische Cache-Busting Variable verhindert, dass GitHub uns alte Versionen liefert!
-        const getGithubUrl = () => 'https://raw.githubusercontent.com/Michkern1AtDachsweg/trainingsplaner/main/Trainingsplan.xlsx?nocache=' + new Date().getTime();
+        const githubExcelUrl = 'https://raw.githubusercontent.com/Michkern1AtDachsweg/trainingsplaner/main/Trainingsplan.xlsx';
 
         const debugEl = document.getElementById('debug-console');
 
+        // Loggt weiterhin geräuschlos in die Browserkonsole (F12), versteckt es aber auf dem Handydisplay
         function debugLog(text) {
             console.log(text);
-            debugEl.innerHTML += "<br>> " + text;
-            debugEl.scrollTop = debugEl.scrollHeight;
         }
 
         window.addEventListener('load', () => {
@@ -357,8 +344,6 @@
                         currentPlan = allPlans[firstPlanName];
                         debugLog("Plan '" + firstPlanName + "' geladen.");
                     }
-                } else {
-                    debugLog("Keine Pläne im lokalen Speicher.");
                 }
             } catch (e) {
                 debugLog("Fehler beim Laden des Speichers: " + e.message);
@@ -383,6 +368,9 @@
             debugLog("Event-Listener registriert.");
         }
 
+        // Dynamischer Cache-Buster verhindert, dass GitHub uns alte Versionen liefert!
+        const getGithubUrl = () => 'https://raw.githubusercontent.com/Michkern1AtDachsweg/trainingsplaner/main/Trainingsplan.xlsx?nocache=' + new Date().getTime();
+
         function importExcelData(arrayBuffer) {
             debugLog("Starte Excel-Datenverarbeitung...");
             try {
@@ -395,8 +383,6 @@
 
                 debugLog("Tabellenblätter in Datei: " + workbook.SheetNames.join(", "));
 
-                // Wir überschreiben beim Import gezielt nur die Blätter, die sich in der neuen Datei befinden,
-                // behalten aber eventuelle andere im Speicher.
                 workbook.SheetNames.forEach(sheetName => {
                     debugLog("Lese Blatt: '" + sheetName + "'");
                     const ws = workbook.Sheets[sheetName];
@@ -407,9 +393,9 @@
                     let headerFound = false;
                     let parsedCount = 0;
 
+                    // Wir durchsuchen das gesamte Blatt ab Zeile 1
                     for (let rowIndex = 0; rowIndex < jsonData.length; rowIndex++) {
                         const row = jsonData[rowIndex];
-
                         if (!row || row.length < 1) continue;
 
                         const cellA = row[0] ? row[0].toString().toLowerCase() : "";
@@ -493,14 +479,13 @@
             reader.readAsArrayBuffer(file);
         }
 
-        // KORREKTUR: Lädt jetzt die Excel immer mit frischem Zeitstempel, um den Cache komplett zu umgehen
         function loadExcelFromGithub() {
             const btn = document.getElementById('btn-load-github');
             btn.textContent = "⌛ Lädt...";
             btn.disabled = true;
 
             const urlWithNoCache = getGithubUrl();
-            debugLog("Lade Vorlage von GitHub (" + urlWithNoCache + ")...");
+            debugLog("Lade Vorlage von GitHub...");
 
             fetch(urlWithNoCache)
                 .then(response => {
