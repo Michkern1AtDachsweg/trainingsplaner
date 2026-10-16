@@ -258,6 +258,7 @@
                 <option value="">-- Pläne laden... --</option>
             </select>
             <div class="header-buttons">
+                <button id="btn-load-github" class="btn btn-blue">🌐 Vorlage laden</button>
                 <label class="btn btn-orange" for="excel-input">📥 Excel Laden</label>
                 <input type="file" id="excel-input" accept=".xlsx" style="display:none;">
                 <button id="btn-delete-plan" class="btn btn-red">🗑️ Löschen</button>
@@ -322,6 +323,8 @@
         const boxingBell = new Audio('boxing-bell.mp3');
         let timerState = { stepIndex: 0, timeLeft: 0, totalRemaining: 0, isPaused: false };
 
+        const githubExcelUrl = 'https://raw.githubusercontent.com/Michkern1AtDachsweg/trainingsplaner/main/Trainingsplan.xlsx';
+
         const debugEl = document.getElementById('debug-console');
 
         function debugLog(text) {
@@ -363,7 +366,8 @@
         });
 
         function initEventListeners() {
-            document.getElementById('excel-input').addEventListener('change', handleExcelImport);
+            document.getElementById('excel-input').addEventListener('change', handleLocalExcelImport);
+            document.getElementById('btn-load-github').addEventListener('click', loadExcelFromGithub);
 
             document.getElementById('plan-selector').addEventListener('change', (e) => {
                 currentPlan = allPlans[e.target.value] || null;
@@ -378,7 +382,7 @@
             debugLog("Event-Listener registriert.");
         }
 
-        // *** KORRIGIERT: Unzerstörbarer Zeilen-Parser (Ignoriert fehlende Spalte A Werte) ***
+        // *** FINALE, HOCHSTABILE EXCEL-LOGIK (Liest starr ab Zeile 3/Index 2 ein) ***
         function importExcelData(arrayBuffer) {
             debugLog("Starte Excel-Datenverarbeitung...");
             try {
@@ -396,38 +400,28 @@
                     const ws = workbook.Sheets[sheetName];
                     const jsonData = XLSX.utils.sheet_to_json(ws, { header: 1 });
 
-                    debugLog("Zeilenanzahl: " + jsonData.length);
+                    debugLog("Zeilenanzahl im Blatt: " + jsonData.length);
                     const newPlan = { name: sheetName, steps: [] };
-                    let headerFound = false;
                     let parsedCount = 0;
 
-                    for (let rowIndex = 0; rowIndex < jsonData.length; rowIndex++) {
+                    // KORREKTUR: Wir starten die Schleife fix bei rowIndex = 2 (Zeile 3 der Excel: "Laufen")
+                    // und entfernen alle blockierenden Header-Prüfungen!
+                    for (let rowIndex = 2; rowIndex < jsonData.length; rowIndex++) {
                         const row = jsonData[rowIndex];
 
-                        // Wenn Zeile leer ist, überspringen
+                        // Überspringe Zeile, falls komplett leer
                         if (!row || row.length < 1) continue;
 
-                        // Erkennung der Kopfzeile über Spalte B oder A (flexibel)
-                        const cellA = row[0] ? row[0].toString().toLowerCase() : "";
-                        const cellB = row[1] ? row[1].toString().toLowerCase() : "";
-                        if (!headerFound && (cellA.includes('zeit') || cellB.includes('zeit') || cellA.includes('wiederholung'))) {
-                            headerFound = true;
-                            debugLog("Header in Zeile " + (rowIndex + 1) + " gefunden.");
-                            continue;
-                        }
-                        if (!headerFound) continue;
-
-                        // *** KORREKTUR: Nutzt Index-Zuweisung, bricht aber bei leeren Zeilen nicht ab ***
                         const baseName = row[0] ? row[0].toString().trim() : "Unbenannte Phase";
                         const workMin = (row[1] !== undefined && row[1] !== null) ? parseFloat(String(row[1]).replace(',', '.')) : 0;
                         const repeats = (row[2] !== undefined && row[2] !== null) ? parseInt(row[2]) : 1;
                         const pauseMin = (row[3] !== undefined && row[3] !== null) ? parseFloat(String(row[3]).replace(',', '.')) : 0;
                         const note = row[5] ? row[5].toString().trim() : "";
 
-                        // Überspringe Zeile, falls Zeit und Name komplett leer sind (Verhindert Müll-Importe)
+                        // Überspringe die Zeile, falls Name und Zeit komplett leer sind
                         if (baseName === "Unbenannte Phase" && workMin === 0) continue;
 
-                        debugLog("Gelesen Zeile " + (rowIndex + 1) + ": " + baseName + " (" + workMin + "m, " + repeats + " Rnd, Pause: " + pauseMin + "m)");
+                        debugLog("Zeile " + (rowIndex + 1) + " erfasst: " + baseName + " | Zeit: " + workMin + "m | Pause: " + pauseMin + "m");
 
                         for (let r = 1; r <= repeats; r++) {
                             newPlan.steps.push({
@@ -437,7 +431,7 @@
                                 note: note
                             });
 
-                            // Pausen hinzufügen (auch am Blockende als Übergangspause)
+                            // Pausen hinzufügen (Übergangspause am Blockende wird ebenfalls erzeugt)
                             if (pauseMin > 0) {
                                 const nextRoundNote = r < repeats ? "Nächste Übung: " + baseName + " (Runde " + (r + 1) + "/" + repeats + ")" : "Block beendet. Nächste Übung vorbereiten...";
                                 newPlan.steps.push({
@@ -462,7 +456,7 @@
                 saveToStorage();
                 updatePlanSelector();
 
-                // Ersten befüllten Plan auswählen und direkt anzeigen
+                // Wähle den ersten importierten Plan aus
                 const planNames = Object.keys(allPlans);
                 if (planNames.length > 0) {
                     const firstPlan = planNames[0];
@@ -478,7 +472,8 @@
             }
         }
 
-        function handleExcelImport(e) {
+        // Lokaler manueller Import (völlig isoliert!)
+        function handleLocalExcelImport(e) {
             const file = e.target.files[0];
             if (!file) {
                 debugLog("Keine Datei ausgewählt.");
@@ -490,6 +485,29 @@
                 importExcelData(event.target.result);
             };
             reader.readAsArrayBuffer(file);
+        }
+
+        // Automatischer GitHub-Import (völlig isoliert!)
+        function loadExcelFromGithub() {
+            const btn = document.getElementById('btn-load-github');
+            btn.textContent = "⌛ Lädt...";
+            btn.disabled = true;
+
+            fetch(githubExcelUrl)
+                .then(response => {
+                    if (!response.ok) throw new Error("GitHub-Verbindung fehlgeschlagen (Status: " + response.status + ")");
+                    return response.arrayBuffer();
+                })
+                .then(arrayBuffer => {
+                    importExcelData(arrayBuffer);
+                })
+                .catch(err => {
+                    alert("Import von GitHub fehlgeschlagen: " + err.message + "\n\nHinweis: Nutze den 'Eigene Excel'-Button als Alternative.");
+                })
+                .finally(() => {
+                    btn.textContent = "🌐 Vorlage laden";
+                    btn.disabled = false;
+                });
         }
 
         function deleteCurrentPlan() {
