@@ -18,8 +18,8 @@
             --red: #e84118;
             --orange: #fbc531;
             --blue: #00a8ff;
-            /* Extra dicker Sicherheitsabstand für die Handy-Leiste unten */
-            --safe-area-bottom: env(safe-area-inset-bottom, 30px);
+            /* Zwingt einen extra dicken Sicherheitsabstand für Handyleisten unten */
+            --safe-area-bottom: env(safe-area-inset-bottom, 35px);
         }
 
         body, html {
@@ -169,6 +169,7 @@
             max-width: 500px;
             height: 100%;
             padding: 20px;
+            /* Schiebt die Buttons im aktiven Training ebenfalls weit über die Handyleiste */
             padding-bottom: calc(60px + var(--safe-area-bottom)) !important;
         }
 
@@ -247,7 +248,7 @@
                 <option value="">-- Pläne laden... --</option>
             </select>
             <div class="header-buttons">
-                <!-- Nur noch der stabile manuelle Lade-Button vorhanden -->
+                <!-- Zurück auf deinen fehlerfreien Ursprungszustand (Nur eigener Excel-Upload) -->
                 <label class="btn btn-orange" for="excel-input">📥 Excel Laden</label>
                 <input type="file" id="excel-input" accept=".xlsx" style="display:none;">
                 <button id="btn-delete-plan" class="btn btn-red">🗑️ Löschen</button>
@@ -303,7 +304,7 @@
     </div>
 
     <script>
-        // *** DIES IST DER REINE ORIGINAL-CODE (OHNE GITHUB-MÜLL) ***
+        // *** DIES IST DEIN ORIGINALER, BEWÄHRTER CODE-FLUSS ***
         let allPlans = {};
         let currentPlan = null;
         let activeInterval = null;
@@ -537,7 +538,6 @@
             document.getElementById('timer-end-time-active').textContent = `${end.getHours().toString().padStart(2, '0')}:${end.getMinutes().toString().padStart(2, '0')}`;
         }
 
-        // Zeigt immer die übernächste Übung an, die keine Pause ist
         function updateNextExercise() {
             const next = currentPlan.steps.slice(timerState.stepIndex + 1).find(s => !s.isPause);
             document.getElementById('timer-next-exercise').textContent = next ? `NÄCHSTE ÜBUNG: ${next.name}` : "LETZTE RUNDE! GIB ALLES!";
