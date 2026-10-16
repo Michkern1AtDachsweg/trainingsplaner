@@ -129,7 +129,7 @@
             top: 0;
         }
 
-        /* KORREKTUR: Hebt die Leiste mit "TRAINING STARTEN" massiv an, damit sie auf Handys nie verdeckt wird */
+        /* Drückt die Startleiste weit nach oben, schützt vor der Handyleiste */
         footer {
             padding: 15px;
             padding-bottom: calc(55px + var(--safe-area-bottom)) !important; /* Dicker Schutzabstand */
@@ -148,9 +148,7 @@
             font-weight: bold;
         }
 
-        /* ==========================================================
-           TRAININGS-VIEW (PERFEKT ZENTRIERT FÜR SMARTPHONES)
-           ========================================================== */
+        /* Zentrierter Timer-Bildschirm */
         #training-view {
             display: flex !important;
             justify-content: center !important;
@@ -169,7 +167,6 @@
             max-width: 500px;
             height: 100%;
             padding: 20px;
-            /* Schiebt die Buttons im aktiven Training ebenfalls weit über die Handyleiste */
             padding-bottom: calc(60px + var(--safe-area-bottom)) !important;
         }
 
@@ -304,7 +301,6 @@
     </div>
 
     <script>
-        // *** DIES IST DEIN ORIGINALER, BEWÄHRTER CODE-FLUSS ***
         let allPlans = {};
         let currentPlan = null;
         let activeInterval = null;
@@ -450,18 +446,18 @@
             currentPlan.steps.forEach(step => {
                 const tr = document.createElement('tr');
                 if (step.isPause) tr.style.backgroundColor = "rgba(41, 128, 185, 0.15)";
-                tr.innerHTML = `<td>${step.name}</td><td>${formatTime(step.duration)}</td><td>${step.isPause ? "✔️" : "❌"}</td><td>${step.note || ""}</td>`;
+                tr.innerHTML = "<td>" + step.name + "</td><td>" + formatTime(step.duration) + "</td><td>" + (step.isPause ? '✔️' : '❌') + "</td><td>" + (step.note || "") + "</td>";
                 tableBody.appendChild(tr);
             });
-            document.getElementById('lbl-total-time').textContent = `Gesamtdauer: ${formatTime(totalSeconds)}`;
+            document.getElementById('lbl-total-time').textContent = "Gesamtdauer: " + formatTime(totalSeconds);
             const end = new Date(Date.now() + totalSeconds * 1000);
-            document.getElementById('lbl-end-time').textContent = `Endzeit: ${end.getHours().toString().padStart(2, '0')}:${end.getMinutes().toString().padStart(2, '0')} Uhr`;
+            document.getElementById('lbl-end-time').textContent = "Endzeit: " + end.getHours().toString().padStart(2, '0') + ":" + end.getMinutes().toString().padStart(2, '0') + " Uhr";
         }
 
         function formatTime(seconds) {
             const m = Math.floor(seconds / 60).toString().padStart(2, '0');
             const s = Math.round(seconds % 60).toString().padStart(2, '0');
-            return `${m}:${s}`;
+            return m + ":" + s;
         }
 
         function saveToStorage() {
@@ -533,16 +529,17 @@
         function updateTimerDisplay() {
             document.getElementById('timer-countdown').textContent = formatTime(timerState.timeLeft);
             document.getElementById('timer-total-remaining').textContent = formatTime(timerState.totalRemaining);
-            document.getElementById('timer-rounds').textContent = `${timerState.stepIndex + 1}/${currentPlan.steps.length}`;
+            document.getElementById('timer-rounds').textContent = timerState.stepIndex + 1 + "/" + currentPlan.steps.length;
             const end = new Date(Date.now() + timerState.totalRemaining * 1000);
-            document.getElementById('timer-end-time-active').textContent = `${end.getHours().toString().padStart(2, '0')}:${end.getMinutes().toString().padStart(2, '0')}`;
+            document.getElementById('timer-end-time-active').textContent = end.getHours().toString().padStart(2, '0') + ":" + end.getMinutes().toString().padStart(2, '0');
         }
 
         function updateNextExercise() {
             const next = currentPlan.steps.slice(timerState.stepIndex + 1).find(s => !s.isPause);
-            document.getElementById('timer-next-exercise').textContent = next ? `NÄCHSTE ÜBUNG: ${next.name}` : "LETZTE RUNDE! GIB ALLES!";
+            document.getElementById('timer-next-exercise').textContent = next ? "NÄCHSTE ÜBUNG: " + next.name : "LETZTE RUNDE! GIB ALLES!";
         }
 
+        // Pause/Fortsetzen steuern
         function togglePause() {
             timerState.isPaused = !timerState.isPaused;
             document.getElementById('btn-pause').textContent = timerState.isPaused ? "▶️ FORTSETZEN" : "⏸️ PAUSE";
