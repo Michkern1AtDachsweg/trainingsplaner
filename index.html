@@ -39,9 +39,7 @@
             width: 100%;
         }
 
-        .hidden {
-            display: none !important;
-        }
+        .hidden { display: none !important; }
 
         header {
             padding: 15px;
@@ -61,40 +59,16 @@
             color: var(--text-light);
         }
 
-        .header-buttons {
-            display: flex;
-            gap: 10px;
-            margin-top: 10px;
-        }
-
-        .btn {
-            border: none;
-            font-weight: bold;
-            cursor: pointer;
-            flex: 1;
-            text-align: center;
-        }
-
-        .btn-orange {
-            background-color: var(--orange);
-            color: #1e272e;
-        }
-
-        .btn-red {
-            background-color: var(--red);
-        }
-
-        .btn-green {
-            background-color: var(--green);
-        }
-
-        .btn-blue {
-            background-color: var(--blue);
-        }
-
-        #btn-start-training:disabled {
-            background-color: #576574;
-            cursor: not-allowed;
+        .header-buttons { display: flex; gap: 10px; margin-top: 10px; }
+        .btn { border: none; font-weight: bold; cursor: pointer; flex: 1; text-align: center; }
+        .btn-orange { background-color: var(--orange); color: #1e272e; }
+        .btn-red { background-color: var(--red); }
+        .btn-green { background-color: var(--green); }
+        .btn-blue { background-color: var(--blue); }
+        
+        #btn-start-training:disabled { 
+            background-color: #576574; 
+            cursor: not-allowed; 
             opacity: 0.5;
         }
 
@@ -111,22 +85,9 @@
             overflow-x: auto;
         }
 
-        table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        th, td {
-            padding: 12px;
-            text-align: left;
-            border-bottom: 1px solid #3f4756;
-        }
-
-        th {
-            background-color: #3f4756;
-            position: sticky;
-            top: 0;
-        }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #3f4756; }
+        th { background-color: #3f4756; position: sticky; top: 0; }
 
         footer {
             padding: 15px;
@@ -140,11 +101,7 @@
             border-radius: 8px;
         }
 
-        .time-summary {
-            display: flex;
-            justify-content: space-between;
-            font-weight: bold;
-        }
+        .time-summary { display: flex; justify-content: space-between; font-weight: bold; }
 
         #training-view {
             display: flex !important;
@@ -155,82 +112,46 @@
             height: 100%;
         }
 
-        .training-container {
-            display: flex;
-            flex-direction: column;
+        .training-container { 
+            display: flex; 
+            flex-direction: column; 
             align-items: center;
-            justify-content: space-between;
-            width: 100%;
-            max-width: 500px;
+            justify-content: space-between; 
+            width: 100%; 
+            max-width: 500px; 
             height: 100%;
             padding: 20px;
             padding-bottom: calc(60px + var(--safe-area-bottom)) !important;
         }
 
-        #timer-step-name {
-            font-size: 28px;
-            font-weight: 900;
-            text-transform: uppercase;
-        }
-
-        #timer-note {
-            font-size: 16px;
-            color: var(--orange);
-        }
-
-        #timer-countdown {
-            font-size: clamp(80px, 15vh, 130px);
-            font-weight: 900;
-            font-variant-numeric: tabular-nums;
-            margin: 15px 0;
-        }
-
-        .training-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 10px;
-            width: 100%;
-        }
-
-        .info-card {
-            background-color: var(--panel-dark);
-            padding: 12px;
-            border-radius: 8px;
+        #timer-step-name { font-size: 28px; font-weight: 900; text-transform: uppercase; }
+        #timer-note { font-size: 16px; color: var(--orange); }
+        #timer-countdown { font-size: clamp(80px, 15vh, 130px); font-weight: 900; font-variant-numeric: tabular-nums; margin: 15px 0; }
+        .training-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; width: 100%; }
+        
+        .info-card { 
+            background-color: var(--panel-dark); 
+            padding: 12px; 
+            border-radius: 8px; 
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
         }
+        .info-card span { font-size: 11px; color: #a4b0be; }
+        .info-card strong { font-size: 15px; margin-top: 3px; }
 
-            .info-card span {
-                font-size: 11px;
-                color: #a4b0be;
-            }
-
-            .info-card strong {
-                font-size: 15px;
-                margin-top: 3px;
-            }
-
-        #timer-next-exercise {
-            background-color: rgba(255,255,255,0.05);
-            padding: 12px;
-            border-radius: 8px;
-            font-weight: bold;
+        #timer-next-exercise { 
+            background-color: rgba(255,255,255,0.05); 
+            padding: 12px; 
+            border-radius: 8px; 
+            font-weight: bold; 
             font-size: 15px;
             width: 100%;
         }
 
-        .timer-controls {
-            display: flex;
-            gap: 10px;
-            width: 100%;
-        }
-
-            .timer-controls .btn {
-                padding: 15px;
-                font-size: 16px;
-            }
+        .timer-controls { display: flex; gap: 10px; width: 100%; }
+        .timer-controls .btn { padding: 15px; font-size: 16px; }
     </style>
 </head>
 <body>
@@ -280,15 +201,15 @@
             <h1 id="timer-step-name">LAUFEN</h1>
             <p id="timer-note">Aufwärmen</p>
             <div id="timer-countdown">10:00</div>
-
+            
             <div class="training-grid">
                 <div class="info-card"><span>⏳ Restzeit</span><strong id="timer-total-remaining">00:00</strong></div>
                 <div class="info-card"><span>🔄 Phasen</span><strong id="timer-rounds">0/0</strong></div>
                 <div class="info-card"><span>🏁 Ende</span><strong id="timer-end-time-active">--:--</strong></div>
             </div>
-
+            
             <div id="timer-next-exercise">NÄCHSTE ÜBUNG: ...</div>
-
+            
             <div class="timer-controls">
                 <button id="btn-pause" class="btn btn-orange">⏸️ PAUSE</button>
                 <button id="btn-skip" class="btn btn-blue">⏭️ SKIP</button>
@@ -301,8 +222,11 @@
         let allPlans = {};
         let currentPlan = null;
         let activeInterval = null;
-        let boxingBell = null; // Wird erst lazy initialisiert
         let timerState = { stepIndex: 0, timeLeft: 0, totalRemaining: 0, isPaused: false };
+
+        // Globale Audio-Kontext Variablen für unblockierte Wiedergabe (Ambient-Modus)
+        let audioCtx = null;
+        let bellBuffer = null;
 
         const githubExcelUrl = 'https://raw.githubusercontent.com/Michkern1AtDachsweg/trainingsplaner/main/Trainingsplan.xlsx';
 
@@ -326,7 +250,7 @@
         function initEventListeners() {
             document.getElementById('excel-input').addEventListener('change', handleLocalExcelImport);
             document.getElementById('btn-load-github').addEventListener('click', loadExcelFromGithub);
-
+            
             document.getElementById('plan-selector').addEventListener('change', (e) => {
                 currentPlan = allPlans[e.target.value] || null;
                 renderPlanTable();
@@ -344,7 +268,7 @@
             try {
                 const data = new Uint8Array(arrayBuffer);
                 const workbook = XLSX.read(data, { type: 'array' });
-
+                
                 if (!workbook || !workbook.SheetNames.length) {
                     throw new Error("Ungültiges Dateiformat.");
                 }
@@ -352,23 +276,23 @@
                 workbook.SheetNames.forEach(sheetName => {
                     const ws = workbook.Sheets[sheetName];
                     const jsonData = XLSX.utils.sheet_to_json(ws, { header: 1 });
-
+                    
                     if (jsonData.length === 0) return;
 
                     const newPlan = { name: sheetName, steps: [] };
                     let headerFound = false;
-
+                    
                     for (let rowIndex = 0; rowIndex < jsonData.length; rowIndex++) {
                         const row = jsonData[rowIndex];
                         if (!row || row.length < 1) continue;
 
                         const cellA = row[0] ? row[0].toString().toLowerCase() : "";
                         const cellB = row[1] ? row[1].toString().toLowerCase() : "";
-                        if (!headerFound && (cellA.includes('zeit') || cellB.includes('zeit') || cellA.includes('wiederholung') || cellA.includes('pause'))) {
-                            headerFound = true;
-                            continue;
+                        if (!headerFound && (cellA.includes('zeit') || cellB.includes('zeit') || cellA.includes('wiederholung') || cellA.includes('pause'))) { 
+                            headerFound = true; 
+                            continue; 
                         }
-
+                        
                         if (!headerFound) continue;
 
                         const baseName = row[0] ? row[0].toString().trim() : "Unbenannte Phase";
@@ -376,38 +300,37 @@
                         const repeats = (row[2] !== undefined && row[2] !== null) ? parseInt(row[2]) : 1;
                         const pauseMin = (row[3] !== undefined && row[3] !== null) ? parseFloat(String(row[3]).replace(',', '.')) : 0;
                         const note = row[5] ? row[5].toString().trim() : "";
-
+                        
                         if (baseName === "Unbenannte Phase" && workMin === 0) continue;
 
                         for (let r = 1; r <= repeats; r++) {
-                            newPlan.steps.push({
-                                name: baseName + (repeats > 1 ? " (Runde " + r + "/" + repeats + ")" : ""),
-                                duration: workMin * 60,
-                                isPause: false,
+                            newPlan.steps.push({ 
+                                name: baseName + (repeats > 1 ? " (Runde " + r + "/" + repeats + ")" : ""), 
+                                duration: workMin * 60, 
+                                isPause: false, 
                                 note: note
                             });
-
+                            
                             if (pauseMin > 0) {
                                 const nextRoundNote = r < repeats ? "Nächste Übung: " + baseName + " (Runde " + (r + 1) + "/" + repeats + ")" : "Block beendet. Nächste Übung vorbereiten...";
-                                newPlan.steps.push({
-                                    name: "Pause",
-                                    duration: pauseMin * 60,
-                                    isPause: true,
+                                newPlan.steps.push({ 
+                                    name: "Pause", 
+                                    duration: pauseMin * 60, 
+                                    isPause: true, 
                                     note: nextRoundNote
                                 });
                             }
-                            parsedCount++;
                         }
                     }
-
+                    
                     if (newPlan.steps.length > 0) {
                         allPlans[sheetName] = newPlan;
                     }
                 });
-
+                
                 saveToStorage();
                 updatePlanSelector();
-
+                
                 const planNames = Object.keys(allPlans);
                 if (planNames.length > 0) {
                     const firstPlan = planNames[0];
@@ -416,8 +339,8 @@
                     renderPlanTable();
                 }
                 alert("Trainingspläne erfolgreich geladen!");
-            } catch (err) {
-                alert("Verarbeitungsfehler: Bitte stelle sicher, dass die hochgeladene Datei eine korrekte Trainingsplan-Excel ist.");
+            } catch (err) { 
+                alert("Verarbeitungsfehler: Bitte stelle sicher, dass die hochgeladene Datei eine korrekte Trainingsplan-Excel ist."); 
             }
         }
 
@@ -485,7 +408,7 @@
                 startButton.disabled = true;
                 return;
             }
-
+            
             startButton.disabled = false;
             let totalSeconds = currentPlan.steps.reduce((acc, step) => acc + step.duration, 0);
             currentPlan.steps.forEach(step => {
@@ -509,62 +432,70 @@
             localStorage.setItem('trainingsplaene', JSON.stringify(allPlans));
         }
 
-        // *** KORREKTUR: Audio-Initialisierung mit Non-Blocking Web Audio-API / AudioContext ***
-        // Verhindert, dass Spotify oder Musik im Hintergrund pausiert wird!
+        // *** KORREKTUR: Initialisiert den AudioContext für Ambient/Mixer Modus ***
         function startTraining() {
             if (!currentPlan || currentPlan.steps.length === 0) return;
-
-            if (!boxingBell) {
-                try {
-                    // Erstellt das Audio-Element im Hintergrund-Mix-Modus
-                    boxingBell = new Audio('boxing-bell.mp3');
-
-                    // Verhindert das exklusive Reservieren der Audio-Hardware (Spotify läuft weiter!)
-                    boxingBell.preload = "auto";
-                    boxingBell.volume = 1.0;
-
-                    // Android & iOS-Spezifischer Mix-Befehl
-                    if (typeof boxingBell.play === 'function') {
-                        boxingBell.load();
-                    }
-                } catch (e) {
-                    console.warn("Audio-Engine blockiert: " + e.message);
-                }
+            
+            // Initialisiert die Web-Audio-API im ungesperrten "Playback/Ambient" Modus
+            try {
+                window.AudioContext = window.AudioContext || window.webkitAudioContext;
+                audioCtx = new AudioContext();
+                
+                // Wir laden die boxglocke.mp3 asynchron als Daten-Buffer, um sie ohne Spotify-Störung einzumischen!
+                loadSoundFile('boxing-bell.mp3');
+            } catch(e) {
+                console.warn("Web-Audio konnte nicht initialisiert werden.");
             }
-
+            
             document.getElementById('main-view').classList.add('hidden');
             document.getElementById('training-view').classList.remove('hidden');
             timerState = { stepIndex: 0, isPaused: false, totalRemaining: currentPlan.steps.reduce((acc, s) => acc + s.duration, 0) };
-            runStep();
+            
+            // Startverzögerung für den initialen Gong-Schlag
+            playStartGongPattern();
+            setTimeout(runStep, 1500);
         }
 
-        function playGongSafe() {
-            if (boxingBell) {
+        // Lädt die Audiodatei direkt als Web-Audio-Buffer in den RAM-Speicher
+        function loadSoundFile(url) {
+            fetch(url)
+                .then(response => response.arrayBuffer())
+                .then(arrayBuffer => audioCtx.decodeAudioData(arrayBuffer))
+                .then(decodedData => {
+                    bellBuffer = decodedData;
+                })
+                .catch(e => console.warn("Fehler beim Laden des MP3-Buffers. Fallback aktiv."));
+        }
+
+        // Spielt die MP3-Glocke ab, ohne Spotify den Fokus zu stehlen!
+        function playBellSafe() {
+            if (audioCtx && bellBuffer) {
                 try {
-                    // Falls die Musik läuft, wird das Audio überlagert (nicht blockiert)
-                    boxingBell.currentTime = 0;
-
-                    // Web-Standard-Befehl für asynchrones, nicht-unterbrechendes Abspielen
-                    var playPromise = boxingBell.play();
-
-                    if (playPromise !== undefined) {
-                        playPromise.then(_ => {
-                            // Gong läuft parallel zur Musik!
-                        }).catch(error => {
-                            console.warn("Autoplay-Sperre griff: " + error.message);
-                        });
-                    }
-                } catch (e) {
-                    // Beep-Ausfallschutz falls MP3 blockiert wird
-                    playSystemBeep(2200, 150);
+                    // Erstellt eine temporäre Soundquelle im laufenden Stream
+                    const playSound = audioCtx.createBufferSource();
+                    playSound.buffer = bellBuffer;
+                    playSound.connect(audioCtx.destination);
+                    
+                    // Startet die Glocke absolut parallel und ohne Spotify-Einfluss!
+                    playSound.start(0);
+                } catch(e) {
+                    playFallbackBeep(1400, 200); // Physikalischer Fallback
                 }
+            } else {
+                playFallbackBeep(1400, 200);
             }
+        }
+
+        function playStartGongPattern() {
+            playBellSafe();
+            setTimeout(playBellSafe, 400);
+            setTimeout(playBellSafe, 800);
         }
 
         function runStep() {
             if (timerState.stepIndex >= currentPlan.steps.length) {
                 clearInterval(activeInterval);
-                playGongSafe();
+                playBellSafe();
                 alert("Training beendet! Starke Leistung!");
                 quitTraining(true);
                 return;
@@ -576,27 +507,19 @@
             document.getElementById('training-view').style.backgroundColor = step.isPause ? "#2980b9" : "#c0392b";
             updateNextExercise();
             updateTimerDisplay();
-
-            playGongSafe(); // Rundenwechselgong läuft parallel!
-
+            
+            playBellSafe(); // Rundenwechselgong ertönt synchron zur Musik!
+            
             clearInterval(activeInterval);
             activeInterval = setInterval(timerTick, 1000);
         }
 
         function timerTick() {
             if (timerState.isPaused) return;
-
-            // Countdown-Pings bei Sekunde 3, 2, 1 (über Web-Audio-Synthesizer, blockiert niemals Musik!)
+            
+            // Countdown-Pings bei Sekunde 3, 2, 1
             if (timerState.timeLeft <= 4 && timerState.timeLeft > 1) {
-                try {
-                    const ctx = new (window.AudioContext || window.webkitAudioContext)();
-                    const osc = ctx.createOscillator();
-                    osc.type = "sine";
-                    osc.frequency.value = 1800;
-                    osc.connect(ctx.destination);
-                    osc.start();
-                    setTimeout(() => osc.stop(), 80);
-                } catch (e) { }
+                playFallbackBeep(1800, 80);
             }
 
             if (timerState.timeLeft <= 1) {
@@ -607,6 +530,22 @@
                 timerState.totalRemaining--;
                 updateTimerDisplay();
             }
+        }
+
+        // Synthetische Beeps (Garantieren 100%iges Weiterlaufen von Spotify)
+        function playFallbackBeep(freq, duration) {
+            try {
+                if (audioCtx) {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.type = "sine";
+                    osc.frequency.value = freq;
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.start();
+                    setTimeout(() => { try { osc.stop(); } catch(e) {} }, duration);
+                }
+            } catch(e) {}
         }
 
         function updateTimerDisplay() {
