@@ -128,7 +128,6 @@
             top: 0;
         }
 
-        /* Footer weit nach oben geschoben für Handyleisten-Schutz */
         footer {
             padding: 15px;
             padding-bottom: calc(55px + var(--safe-area-bottom)) !important;
@@ -302,6 +301,7 @@
         let allPlans = {};
         let currentPlan = null;
         let activeInterval = null;
+        let boxingBell = null;
         let timerState = { stepIndex: 0, timeLeft: 0, totalRemaining: 0, isPaused: false };
 
         // Globale Audio-Kontext Variablen für unblockierte Wiedergabe (Ambient-Modus)
@@ -313,8 +313,6 @@
         window.addEventListener('load', () => {
             initEventListeners();
 
-            // KORREKTUR: Wir starten den Web-Audio-Mixer und laden die boxing-bell.mp3
-            // SOFORT beim Laden der Seite im Hintergrund, damit sie beim Starten direkt bereit ist!
             try {
                 window.AudioContext = window.AudioContext || window.webkitAudioContext;
                 audioCtx = new AudioContext();
@@ -355,6 +353,7 @@
 
         const getGithubUrl = () => 'https://raw.githubusercontent.com/Michkern1AtDachsweg/trainingsplaner/main/Trainingsplan.xlsx?nocache=' + new Date().getTime();
 
+        // *** HOCHSTABILER PARSER (Mit intelligenter End-Pausen-Sperre!) ***
         function importExcelData(arrayBuffer) {
             try {
                 const data = new Uint8Array(arrayBuffer);
@@ -363,6 +362,8 @@
                 if (!workbook || !workbook.SheetNames.length) {
                     throw new Error("Ungültiges Dateiformat.");
                 }
+
+                allPlans = {}; // Alten Speicher überschreiben
 
                 workbook.SheetNames.forEach(sheetName => {
                     const ws = workbook.Sheets[sheetName];
@@ -373,6 +374,8 @@
                     const newPlan = { name: sheetName, steps: [] };
                     let headerFound = false;
 
+                    // Wir filtern zuerst alle echten Datenzeilen heraus, um das absolute Ende zu kennen
+                    const dataRows = [];
                     for (let rowIndex = 0; rowIndex < jsonData.length; rowIndex++) {
                         const row = jsonData[rowIndex];
                         if (!row || row.length < 1) continue;
@@ -384,15 +387,25 @@
                             continue;
                         }
 
-                        if (!headerFound) continue;
+                        if (headerFound) {
+                            const baseName = row[0] ? row[0].toString().trim() : "Unbenannte Phase";
+                            const workMin = (row[1] !== undefined && row[1] !== null) ? parseFloat(String(row[1]).replace(',', '.')) : 0;
+                            if (baseName !== "Unbenannte Phase" || workMin > 0) {
+                                dataRows.push(row);
+                            }
+                        }
+                    }
 
+                    // Jetzt befüllen wir den Plan Schritt für Schritt
+                    for (let i = 0; i < dataRows.length; i++) {
+                        const row = dataRows[i];
                         const baseName = row[0] ? row[0].toString().trim() : "Unbenannte Phase";
-                        const workMin = (row[1] !== undefined && row[1] !== null) ? parseFloat(String(row[1]).replace(',', '.')) : 0;
-                        const repeats = (row[2] !== undefined && row[2] !== null) ? parseInt(row[2]) : 1;
-                        const pauseMin = (row[3] !== undefined && row[3] !== null) ? parseFloat(String(row[3]).replace(',', '.')) : 0;
+                        const workMin = parseFloat(String(row[1]).replace(',', '.')) || 0;
+                        const repeats = parseInt(row[2]) || 1;
+                        const pauseMin = parseFloat(String(row[3]).replace(',', '.')) || 0;
                         const note = row[5] ? row[5].toString().trim() : "";
 
-                        if (baseName === "Unbenannte Phase" && workMin === 0) continue;
+                        const isLastBlock = (i === dataRows.length - 1); // Prüft, ob dies der allerletzte Zeileneintrag ist
 
                         for (let r = 1; r <= repeats; r++) {
                             newPlan.steps.push({
@@ -402,14 +415,18 @@
                                 note: note
                             });
 
+                            // *** KORREKTUR: Keine Pause mehr am absoluten Trainingsende! ***
                             if (pauseMin > 0) {
-                                const nextRoundNote = r < repeats ? "Nächste Übung: " + baseName + " (Runde " + (r + 1) + "/" + repeats + ")" : "Block beendet. Nächste Übung vorbereiten...";
-                                newPlan.steps.push({
-                                    name: "Pause",
-                                    duration: pauseMin * 60,
-                                    isPause: true,
-                                    note: nextRoundNote
-                                });
+                                const isLastRoundOfLastBlock = (isLastBlock && r === repeats);
+                                if (!isLastRoundOfLastBlock) {
+                                    const nextRoundNote = r < repeats ? "Nächste Übung: " + baseName + " (Runde " + (r + 1) + "/" + repeats + ")" : "Block beendet. Nächste Übung vorbereiten...";
+                                    newPlan.steps.push({
+                                        name: "Pause",
+                                        duration: pauseMin * 60,
+                                        isPause: true,
+                                        note: nextRoundNote
+                                    });
+                                }
                             }
                         }
                     }
@@ -523,7 +540,6 @@
             localStorage.setItem('trainingsplaene', JSON.stringify(allPlans));
         }
 
-        // Lädt die MP3-Datei asynchron als Daten-Buffer in den RAM
         function loadSoundFile(url) {
             fetch(url)
                 .then(response => response.arrayBuffer())
@@ -534,11 +550,9 @@
                 .catch(e => console.warn("Lade-Verzögerung bei MP3-Glocke."));
         }
 
-        // Spielt die echte boxing-bell.mp3 im unblockierten Ambient-Modus ab!
         function playBellSafe() {
             if (audioCtx && bellBuffer) {
                 try {
-                    // Aktiviert den Audio-Kontext (falls dieser im Standby war)
                     if (audioCtx.state === 'suspended') {
                         audioCtx.resume();
                     }
@@ -550,14 +564,13 @@
                     playFallbackBeep(2200, 150);
                 }
             } else {
-                playFallbackBeep(2200, 150); // Fallback falls Buffer noch lädt
+                playFallbackBeep(2200, 150);
             }
         }
 
         function startTraining() {
             if (!currentPlan || currentPlan.steps.length === 0) return;
 
-            // Aktiviert den Audio-Kontext sicher durch den Klick
             if (audioCtx && audioCtx.state === 'suspended') {
                 audioCtx.resume();
             }
@@ -593,7 +606,7 @@
             updateNextExercise();
             updateTimerDisplay();
 
-            playBellSafe(); // Echte Boxglocke läutet parallel zu Spotify!
+            playBellSafe();
 
             clearInterval(activeInterval);
             activeInterval = setInterval(timerTick, 1000);
@@ -617,7 +630,6 @@
             }
         }
 
-        // Synthetischer Beep-Ton (Glocken-Synthese)
         function playFallbackBeep(freq, duration) {
             try {
                 if (audioCtx) {
