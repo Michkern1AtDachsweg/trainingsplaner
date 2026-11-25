@@ -92,6 +92,11 @@
             background-color: var(--blue);
         }
 
+        .btn-grey {
+            background-color: #718093;
+            color: white;
+        }
+
         #btn-start-training:disabled {
             background-color: #576574;
             cursor: not-allowed;
@@ -192,6 +197,10 @@
             width: 100%;
         }
 
+            .training-grid.has-pulse {
+                grid-template-columns: repeat(4, 1fr);
+            }
+
         .info-card {
             background-color: var(--panel-dark);
             padding: 12px;
@@ -211,6 +220,18 @@
                 font-size: 15px;
                 margin-top: 3px;
             }
+
+        .pulse-aerob {
+            color: var(--green) !important;
+        }
+
+        .pulse-warn {
+            color: var(--orange) !important;
+        }
+
+        .pulse-danger {
+            color: var(--red) !important;
+        }
 
         #timer-next-exercise {
             background-color: rgba(255,255,255,0.05);
@@ -243,6 +264,7 @@
             </select>
             <div class="header-buttons">
                 <button id="btn-load-github" class="btn btn-blue">🌐 Vorlage laden</button>
+                <button id="btn-connect-pulse" class="btn btn-grey">🔗 Puls verbinden</button>
                 <label class="btn btn-orange" for="excel-input">📥 Excel Laden</label>
                 <input type="file" id="excel-input" accept=".xlsx" style="display:none;">
                 <button id="btn-delete-plan" class="btn btn-red">🗑️ Löschen</button>
@@ -280,15 +302,13 @@
             <h1 id="timer-step-name">LAUFEN</h1>
             <p id="timer-note">Aufwärmen</p>
             <div id="timer-countdown">10:00</div>
-
-            <div class="training-grid">
+            <div id="training-stats-grid" class="training-grid">
                 <div class="info-card"><span>⏳ Restzeit</span><strong id="timer-total-remaining">00:00</strong></div>
                 <div class="info-card"><span>🔄 Phasen</span><strong id="timer-rounds">0/0</strong></div>
                 <div class="info-card"><span>🏁 Ende</span><strong id="timer-end-time-active">--:--</strong></div>
+                <div id="card-pulse" class="info-card hidden"><span>💓 Puls</span><strong id="timer-pulse-value">--</strong></div>
             </div>
-
             <div id="timer-next-exercise">NÄCHSTE ÜBUNG: ...</div>
-
             <div class="timer-controls">
                 <button id="btn-pause" class="btn btn-orange">⏸️ PAUSE</button>
                 <button id="btn-skip" class="btn btn-blue">⏭️ SKIP</button>
@@ -308,11 +328,15 @@
         let audioCtx = null;
         let bellBuffer = null;
 
+        // Bluetooth-Variablen
+        let bleDevice = null;
+        let bleCharacteristic = null;
+        let currentHeartRate = null;
+
         const githubExcelUrl = 'https://raw.githubusercontent.com/Michkern1AtDachsweg/trainingsplaner/main/Trainingsplan.xlsx';
 
         window.addEventListener('load', () => {
             initEventListeners();
-
             try {
                 window.AudioContext = window.AudioContext || window.webkitAudioContext;
                 audioCtx = new AudioContext();
@@ -320,7 +344,6 @@
             } catch (e) {
                 console.warn("Audio-Engine konnte beim Start nicht initialisiert werden.");
             }
-
             try {
                 const saved = localStorage.getItem('trainingsplaene');
                 if (saved) {
@@ -339,7 +362,7 @@
         function initEventListeners() {
             document.getElementById('excel-input').addEventListener('change', handleLocalExcelImport);
             document.getElementById('btn-load-github').addEventListener('click', loadExcelFromGithub);
-
+            document.getElementById('btn-connect-pulse').addEventListener('click', connectToPolarSensor);
             document.getElementById('plan-selector').addEventListener('change', (e) => {
                 currentPlan = allPlans[e.target.value] || null;
                 renderPlanTable();
@@ -351,42 +374,79 @@
             document.getElementById('btn-stop').addEventListener('click', () => quitTraining(false));
         }
 
+        async function connectToPolarSensor() {
+            const btn = document.getElementById('btn-connect-pulse');
+            btn.textContent = "⌛ Suche...";
+            try {
+                bleDevice = await navigator.bluetooth.requestDevice({
+                    filters: [{ services: ['heart_rate'] }]
+                });
+                const server = await bleDevice.gatt.connect();
+                const service = await server.getPrimaryService('heart_rate');
+                bleCharacteristic = await service.getCharacteristic('heart_rate_measurement');
+                await bleCharacteristic.startNotifications();
+                bleCharacteristic.addEventListener('characteristicvaluechanged', handleHeartRateValueChanged);
+                btn.textContent = "💓 Verbunden";
+                btn.style.backgroundColor = "var(--green)";
+            } catch (error) {
+                console.error(error);
+                btn.textContent = "🔗 Puls verbinden";
+                btn.style.backgroundColor = "#718093";
+                alert("Verbindung fehlgeschlagen.");
+            }
+        }
+
+        function handleHeartRateValueChanged(event) {
+            const value = event.target.value;
+            const flags = value.getUint8(0);
+            const rate16Bits = flags & 0x1;
+            let heartRate = 0;
+            if (rate16Bits) {
+                heartRate = value.getUint16(1, true);
+            } else {
+                heartRate = value.getUint8(1);
+            }
+            currentHeartRate = heartRate;
+            const pulseValueEl = document.getElementById('timer-pulse-value');
+            if (pulseValueEl) {
+                pulseValueEl.textContent = heartRate;
+                pulseValueEl.className = "";
+                if (heartRate < 130) {
+                    pulseValueEl.classList.add('pulse-aerob');
+                } else if (heartRate >= 130 && heartRate <= 160) {
+                    pulseValueEl.classList.add('pulse-warn');
+                } else {
+                    pulseValueEl.classList.add('pulse-danger');
+                }
+            }
+        }
+
         const getGithubUrl = () => 'https://raw.githubusercontent.com/Michkern1AtDachsweg/trainingsplaner/main/Trainingsplan.xlsx?nocache=' + new Date().getTime();
 
-        // *** HOCHSTABILER PARSER (Mit intelligenter End-Pausen-Sperre!) ***
         function importExcelData(arrayBuffer) {
             try {
                 const data = new Uint8Array(arrayBuffer);
                 const workbook = XLSX.read(data, { type: 'array' });
-
                 if (!workbook || !workbook.SheetNames.length) {
                     throw new Error("Ungültiges Dateiformat.");
                 }
-
-                allPlans = {}; // Alten Speicher überschreiben
-
+                allPlans = {};
                 workbook.SheetNames.forEach(sheetName => {
                     const ws = workbook.Sheets[sheetName];
                     const jsonData = XLSX.utils.sheet_to_json(ws, { header: 1 });
-
                     if (jsonData.length === 0) return;
-
                     const newPlan = { name: sheetName, steps: [] };
                     let headerFound = false;
-
-                    // Wir filtern zuerst alle echten Datenzeilen heraus, um das absolute Ende zu kennen
                     const dataRows = [];
                     for (let rowIndex = 0; rowIndex < jsonData.length; rowIndex++) {
                         const row = jsonData[rowIndex];
                         if (!row || row.length < 1) continue;
-
                         const cellA = row[0] ? row[0].toString().toLowerCase() : "";
                         const cellB = row[1] ? row[1].toString().toLowerCase() : "";
                         if (!headerFound && (cellA.includes('zeit') || cellB.includes('zeit') || cellA.includes('wiederholung') || cellA.includes('pause'))) {
                             headerFound = true;
                             continue;
                         }
-
                         if (headerFound) {
                             const baseName = row[0] ? row[0].toString().trim() : "Unbenannte Phase";
                             const workMin = (row[1] !== undefined && row[1] !== null) ? parseFloat(String(row[1]).replace(',', '.')) : 0;
@@ -395,8 +455,6 @@
                             }
                         }
                     }
-
-                    // Jetzt befüllen wir den Plan Schritt für Schritt
                     for (let i = 0; i < dataRows.length; i++) {
                         const row = dataRows[i];
                         const baseName = row[0] ? row[0].toString().trim() : "Unbenannte Phase";
@@ -404,9 +462,7 @@
                         const repeats = parseInt(row[2]) || 1;
                         const pauseMin = parseFloat(String(row[3]).replace(',', '.')) || 0;
                         const note = row[5] ? row[5].toString().trim() : "";
-
-                        const isLastBlock = (i === dataRows.length - 1); // Prüft, ob dies der allerletzte Zeileneintrag ist
-
+                        const isLastBlock = (i === dataRows.length - 1);
                         for (let r = 1; r <= repeats; r++) {
                             newPlan.steps.push({
                                 name: baseName + (repeats > 1 ? " (Runde " + r + "/" + repeats + ")" : ""),
@@ -414,8 +470,6 @@
                                 isPause: false,
                                 note: note
                             });
-
-                            // *** KORREKTUR: Keine Pause mehr am absoluten Trainingsende! ***
                             if (pauseMin > 0) {
                                 const isLastRoundOfLastBlock = (isLastBlock && r === repeats);
                                 if (!isLastRoundOfLastBlock) {
@@ -430,15 +484,12 @@
                             }
                         }
                     }
-
                     if (newPlan.steps.length > 0) {
                         allPlans[sheetName] = newPlan;
                     }
                 });
-
                 saveToStorage();
                 updatePlanSelector();
-
                 const planNames = Object.keys(allPlans);
                 if (planNames.length > 0) {
                     const firstPlan = planNames[0];
@@ -466,9 +517,7 @@
             const btn = document.getElementById('btn-load-github');
             btn.textContent = "⌛ Lädt...";
             btn.disabled = true;
-
             const urlWithNoCache = getGithubUrl();
-
             fetch(urlWithNoCache)
                 .then(response => {
                     if (!response.ok) throw new Error("GitHub-Verbindung fehlgeschlagen (Status: " + response.status + ")");
@@ -509,14 +558,12 @@
             const tableBody = document.getElementById('plan-table').querySelector('tbody');
             const startButton = document.getElementById('btn-start-training');
             tableBody.innerHTML = "";
-
             if (!currentPlan || currentPlan.steps.length === 0) {
                 document.getElementById('lbl-total-time').textContent = "Gesamtdauer: 00:00";
                 document.getElementById('lbl-end-time').textContent = "Endzeit: --:--";
                 startButton.disabled = true;
                 return;
             }
-
             startButton.disabled = false;
             let totalSeconds = currentPlan.steps.reduce((acc, step) => acc + step.duration, 0);
             currentPlan.steps.forEach(step => {
@@ -571,16 +618,23 @@
         function startTraining() {
             if (!currentPlan || currentPlan.steps.length === 0) return;
 
+            const statsGrid = document.getElementById('training-stats-grid');
+            const pulseCard = document.getElementById('card-pulse');
+            if (bleDevice && bleDevice.gatt.connected) {
+                statsGrid.classList.add('has-pulse');
+                pulseCard.classList.remove('hidden');
+            } else {
+                statsGrid.classList.remove('has-pulse');
+                pulseCard.classList.add('hidden');
+            }
+
             if (audioCtx && audioCtx.state === 'suspended') {
                 audioCtx.resume();
             }
-
             playStartGongPattern();
-
             document.getElementById('main-view').classList.add('hidden');
             document.getElementById('training-view').classList.remove('hidden');
             timerState = { stepIndex: 0, isPaused: false, totalRemaining: currentPlan.steps.reduce((acc, s) => acc + s.duration, 0) };
-
             setTimeout(runStep, 1500);
         }
 
@@ -605,21 +659,16 @@
             document.getElementById('training-view').style.backgroundColor = step.isPause ? "#2980b9" : "#c0392b";
             updateNextExercise();
             updateTimerDisplay();
-
             playBellSafe();
-
             clearInterval(activeInterval);
             activeInterval = setInterval(timerTick, 1000);
         }
 
         function timerTick() {
             if (timerState.isPaused) return;
-
-            // Countdown-Pings bei Sekunde 3, 2, 1
             if (timerState.timeLeft <= 4 && timerState.timeLeft > 1) {
                 playFallbackBeep(1800, 80);
             }
-
             if (timerState.timeLeft <= 1) {
                 timerState.stepIndex++;
                 runStep();
@@ -639,23 +688,17 @@
                     const osc1 = audioCtx.createOscillator();
                     const osc2 = audioCtx.createOscillator();
                     const gain = audioCtx.createGain();
-
                     osc1.type = "sine";
                     osc1.frequency.value = freq;
-
                     osc2.type = "sine";
                     osc2.frequency.value = freq * 1.5;
-
                     gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
                     gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + (duration / 1000));
-
                     osc1.connect(gain);
                     osc2.connect(gain);
                     gain.connect(audioCtx.destination);
-
                     osc1.start();
                     osc2.start();
-
                     setTimeout(() => {
                         try {
                             osc1.stop();
@@ -685,6 +728,7 @@
             document.getElementById('training-view').style.backgroundColor = timerState.isPaused ? "#7f8c8d" : (currentPlan.steps[timerState.stepIndex].isPause ? "#2980b9" : "#c0392b");
         }
 
+        // skipStep überspringt den aktuellen Trainingsschritt
         function skipStep() {
             timerState.totalRemaining -= timerState.timeLeft;
             timerState.stepIndex++;
